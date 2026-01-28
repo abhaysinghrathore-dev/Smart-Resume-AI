@@ -62,3 +62,5 @@ resume_analytics/models/bert_tf_ats_score_model/variables/variables.data-00000-o
 
 # Resume uploads
 resumes/
+ 
+ .streamlit/secrets.toml
