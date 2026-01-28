@@ -1,4 +1,8 @@
 import streamlit as st
+from dotenv import load_dotenv
+
+# Load environment variables
+load_dotenv()
 
 # Set page config at the very beginning
 st.set_page_config(
@@ -11,10 +15,10 @@ import uuid
 import requests
 from utils.logger import setup_logger
 from utils.resume_analyzer import ResumeAnalyzer as OldResumeAnalyzer
-from resume_analytics.analyzer import ResumeAnalyzer as NewResumeAnalyzer
+
 from utils.resume_builder import ResumeBuilder
 from config.database import (
-    init_database, verify_admin, log_admin_action
+    verify_admin, log_admin_action
 )
 from config.job_roles import JOB_ROLES
 from dashboard.dashboard import DashboardManager
@@ -22,7 +26,7 @@ from ui_components import render_sidebar, clean_page_name
 
 # Import Views
 from views.home import render_home
-from views.analyzer import render_analyzer
+
 from views.builder import render_builder
 from views.dashboard_view import render_dashboard
 from views.job_search import render_job_search
@@ -30,6 +34,11 @@ from views.feedback import render_feedback_page
 from views.about import render_about
 from views.cover_letter import render_cover_letter_page
 from views.portfolio import render_portfolio_page
+from views.signup import render_signup
+from views.signin import render_signin
+from views.forgot_password import render_forgot_password
+from views.reset_password import render_reset_password
+from views.ats_optimizer import render_ats_optimizer
 
 logger = setup_logger(__name__)
 
@@ -55,7 +64,8 @@ class ResumeApp:
                     'soft': [],
                     'languages': [],
                     'tools': []
-                }
+                },
+                'certifications': []
             }
         
         # Initialize navigation state
@@ -65,25 +75,35 @@ class ResumeApp:
         # Initialize admin state
         if 'is_admin' not in st.session_state:
             st.session_state.is_admin = False
+
+        # Initialize user login state
+        if 'is_logged_in' not in st.session_state:
+            st.session_state.is_logged_in = False
+        if 'user_email' not in st.session_state:
+            st.session_state.user_email = None
         
         # Initialize managers
         self.dashboard_manager = DashboardManager()
         self.old_analyzer = OldResumeAnalyzer()
-        self.new_analyzer = NewResumeAnalyzer(model_type='bert_tf')
+
         self.builder = ResumeBuilder()
         self.job_roles = JOB_ROLES
         
         # Define pages with their rendering functions
         self.pages = {
             "🏠 HOME": render_home,
-            "🔍 RESUME ANALYZER": lambda: render_analyzer(self.old_analyzer, self.new_analyzer, self.job_roles),
+
             "📝 RESUME BUILDER": lambda: render_builder(self.builder),
+            "🎯 ATS RESUME OPTIMIZER": render_ats_optimizer,
             "✉️ COVER LETTER GENERATOR": render_cover_letter_page,
             "🌐 PORTFOLIO VIEWER": render_portfolio_page,
             "📊 DASHBOARD": lambda: render_dashboard(self.dashboard_manager),
             "🎯 JOB SEARCH": render_job_search,
             "💬 FEEDBACK": render_feedback_page,
-            "ℹ️ ABOUT": render_about
+            "ℹ️ ABOUT": render_about,
+            "🔑 SIGN IN": render_signin,
+            "📝 SIGN UP": render_signup,
+            "🔑 FORGOT PASSWORD": render_forgot_password,
         }
         
         # Initialize session state
@@ -95,8 +115,8 @@ class ResumeApp:
         if 'selected_role' not in st.session_state:
             st.session_state.selected_role = None
         
-        # Initialize database
-        init_database()
+        # Database is now managed by Alembic, no init needed here.
+        # init_database()
         
         # Load external CSS
         with open('style/style.css') as f:
@@ -155,6 +175,12 @@ class ResumeApp:
     def main(self):
         """Main application entry point"""
         
+        # Handle page routing from query parameters
+        query_params = st.query_params
+        if "page" in query_params and query_params["page"] == "reset_password":
+            render_reset_password()
+            return
+
         # Admin login/logout in sidebar
         with st.sidebar:
             render_sidebar(
@@ -163,7 +189,9 @@ class ResumeApp:
                 st.session_state.get('is_admin', False),
                 st.session_state.get('current_admin_email'),
                 verify_admin,
-                log_admin_action
+                log_admin_action,
+                st.session_state.get('is_logged_in', False),
+                st.session_state.get('user_email')
             )
         
         # Force home page on first load
@@ -180,13 +208,14 @@ class ResumeApp:
         
         # Handle aliases and normalization
         aliases = {
-            'analyzer': 'resume_analyzer',
+
             'builder': 'resume_builder',
-            'insights': 'dashboard'
+            'insights': 'dashboard',
+            'forgot_password': 'forgot_password'
         }
         
         # Normalize current_page to ensure it matches page_mapping keys
-        # 1. Check aliases first (e.g. 'analyzer' -> 'resume_analyzer')
+        # 1. Check aliases first (e.g. 'builder' -> 'resume_builder')
         # 2. If not in aliases, try cleaning the name (e.g. "Resume Analyzer" -> "resume_analyzer")
         current_page_lower = str(current_page).lower().strip()
         target_page = aliases.get(current_page_lower, clean_page_name(str(current_page)))

@@ -33,7 +33,7 @@ EXPOSE 8501
 ENV DB_HOST=db
 ENV DB_NAME=ai_resume
 ENV DB_USER=postgres
-ENV DB_PASSWORD=postgres
+ENV DB_PASSWORD=root
 ENV DB_PORT=5432
 
 # Run app.py when the container launches

@@ -11,7 +11,7 @@ def render_cover_letter_page():
 
     st.markdown("This tool will help you generate a professional cover letter tailored to a specific job. Simply provide the job description and some details, and let the AI do the rest.")
 
-    # Get user's resume data from session state (populated by builder or analyzer)
+    # Get user's resume data from session state (populated by builder)
     resume_data = st.session_state.get('form_data', {})
 
     if not resume_data.get('personal_info', {}).get('full_name'):

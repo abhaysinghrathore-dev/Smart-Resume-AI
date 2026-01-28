@@ -1,102 +1,98 @@
 # Smart Resume AI 🚀
 
-A next-generation, AI-powered platform designed to help you create, analyze, and optimize your resume, cover letter, and professional portfolio for the modern job market.
+A next-generation, AI-powered platform designed to help you create, analyze, and optimize your resume, cover letter, and professional portfolio for the modern job market. This tool is your personal career co-pilot, helping you stand out and land your dream job.
 
 ![Project Banner](https://placehold.co/1200x400/2f343a/ffffff?text=Smart+Resume+AI)
 
-## 💡 What is Smart Resume AI?
+## 🎯 Purpose of the Application
 
-In today's competitive job market, a generic resume isn't enough. Smart Resume AI tackles this problem head-on. It's not just a template filler; it's an intelligent assistant that helps you craft a compelling narrative of your skills and experiences. From analyzing your existing resume against job descriptions to generating impactful, professional content, this application is your personal career co-pilot.
+In today's competitive job market, a generic resume isn't enough to get noticed. Most companies use Applicant Tracking Systems (ATS) to filter candidates, making it crucial for your resume to be optimized for both machines and humans.
 
-This tool helps you stand out by:
-- **Optimizing** your resume for Applicant Tracking Systems (ATS).
-- **Generating** professional, well-written content for your resume and cover letters.
-- **Showcasing** your projects in a clean, shareable portfolio.
+Smart Resume AI was built to solve this problem. It's an intelligent assistant that helps you:
 
----
+- **Beat the Robots**: Optimize your resume to get past automated screening systems.
+- **Impress the Humans**: Craft a compelling, professional narrative that highlights your skills and achievements.
+- **Save Time**: Automate the tedious parts of job application writing, like tailoring resumes and writing cover letters.
 
-## ✨ Key Features
+## ✨ Unique Features
 
-- **🧠 ML-Powered Resume Analysis:**
-  - Upload your resume to get an instant ATS score powered by a fine-tuned `BERT/TensorFlow` model.
-  - Get detailed feedback on keyword matching, format quality, and section completeness.
-  - Receive actionable, AI-generated suggestions for improvement.
+This application goes beyond simple template-based resume builders. Here's what makes it unique:
 
-- **✍️ Generative Content Creation:**
-  - **AI-Powered Summary:** Generate a powerful, professional summary with one click.
-  - **AI-Enhanced Experience/Projects:** Transform your bullet points into impactful, descriptive paragraphs that showcase your achievements.
-  - **Cover Letter Generator:** Create a tailored cover letter based on your resume data and a specific job description.
-
-- **🌐 Portfolio Viewer:**
-  - Automatically assembles your project data into a clean, shareable web portfolio page.
-
-- **📊 Analytics Dashboard:**
-  - An admin-only dashboard to view application-wide statistics, such as the number of resumes analyzed, average scores, and popular skills.
-
-- **🔒 Secure & Scalable Architecture:**
-  - Built on a robust **PostgreSQL** database with a normalized schema.
-  - Features secure admin authentication with password hashing (`bcrypt`).
-  - Containerized with **Docker** for consistent, reproducible deployments.
+- **🤖 AI-Powered Content Generation**: Uses powerful Generative AI models (like GPT from OpenAI and models from Groq) to write and enhance your resume sections and cover letters.
+- **🎯 ATS Optimization Score**: Get a real-time score on how well your resume is optimized for Applicant Tracking Systems.
+- **🔍 Side-by-Side Analysis**: Compare your resume against a specific job description to identify missing keywords and areas for improvement.
+- **👔 Professional Portfolio Generator**: Automatically create a clean, shareable web page to showcase your projects.
+- **🔐 Secure User & Admin System**: Features separate, secure login systems for users and administrators, with password hashing using `bcrypt`.
+- **📊 Admin Analytics Dashboard**: A dedicated dashboard for administrators to monitor application usage, user activity, and resume statistics.
 
 ---
 
 ## 🛠️ Technology Stack
 
-- **Backend:** Python
-- **Frontend:** Streamlit
-- **Database:** PostgreSQL
-- **AI/ML:** TensorFlow, Transformers (BERT), spaCy, Scikit-learn, Pandas
-- **Containerization:** Docker
-- **File Processing:** PyPDF2, python-docx
+This project is built with a modern, robust technology stack:
+
+- **Backend**: Python
+- **Web Framework**: Streamlit
+- **Database**: PostgreSQL
+- **ORM & Migrations**: SQLAlchemy, Alembic
+- **Generative AI**: OpenAI, Groq APIs
+- **Authentication**: `bcrypt` for password hashing
+- **File Processing**: `PyPDF2` (PDFs), `python-docx` (Word Documents)
+- **Deployment**: Docker
 
 ---
 
 ## 🚀 Getting Started
 
-There are two ways to get the application running: using Docker (recommended for ease of use) or setting it up manually for local development.
+You can run this application using Docker (recommended for ease of use) or by setting it up manually on your local machine.
 
 ### Method 1: Docker Setup (Recommended)
 
-This is the easiest and most reliable way to run the application, as it handles all dependencies and configurations for you.
+This is the easiest way to get the application running, as it handles all dependencies and configuration for you.
 
 **Prerequisites:**
-- [Docker](https://www.docker.com/products/docker-desktop/) installed on your machine.
-- A running PostgreSQL instance. You can easily start one with Docker:
-  ```bash
-  docker run --name some-postgres -e POSTGRES_PASSWORD=your_password -e POSTGRES_DB=ai_resume -p 5432:5432 -d postgres
-  ```
+- [Docker Desktop](https://www.docker.com/products/docker-desktop/) installed on your machine.
 
 **Steps:**
 
-1.  **Build the Docker Image:**
-    Open a terminal in the project root and run:
+1.  **Start a PostgreSQL Database with Docker:**
+    Run this command in your terminal to start a PostgreSQL container.
+    ```bash
+    docker run --name my-postgres-db -e POSTGRES_PASSWORD=your_secure_password -e POSTGRES_DB=ai_resume_db -p 5432:5432 -d postgres
+    ```
+    *You can change `your_secure_password`, but remember it for the next step.*
+
+2.  **Build the Application's Docker Image:**
+    In the project's root directory, run:
     ```bash
     docker build -t smart-resume-ai .
     ```
 
-2.  **Run the Docker Container:**
-    Run the application, connecting it to your PostgreSQL database. Make sure to replace `your_password` with the password you used when starting the PostgreSQL container.
+3.  **Run the Application Container:**
+    Run the application, connecting it to the PostgreSQL database you just started.
     ```bash
     docker run -p 8501:8501 \
       -e DB_HOST=host.docker.internal \
-      -e DB_NAME=ai_resume \
+      -e DB_NAME=ai_resume_db \
       -e DB_USER=postgres \
-      -e DB_PASSWORD=your_password \
+      -e DB_PASSWORD=your_secure_password \
+      -e ADMIN_EMAIL=admin@example.com \
+      -e ADMIN_PASSWORD=admin123 \
       smart-resume-ai
     ```
-    *Note: `host.docker.internal` is a special DNS name that lets the container connect to services running on your host machine.*
+    *Note: `host.docker.internal` allows the container to connect to the PostgreSQL database running on your host machine.*
 
-3.  **Access the Application:**
-    Open your web browser and go to `http://localhost:8501`.
+4.  **Access the Application:**
+    Open your web browser and navigate to `http://localhost:8501`.
 
 ### Method 2: Manual Local Setup
 
-Follow these steps if you want to set up the development environment on your machine manually.
+Follow these steps for a local development environment.
 
 **Prerequisites:**
-- Python 3.11
-- PostgreSQL installed and running.
-- Microsoft C++ Build Tools (for Windows users, to install dependencies).
+- Python 3.11 or newer
+- PostgreSQL installed and a database created.
+- [Git](https://git-scm.com/downloads) installed.
 
 **Steps:**
 
@@ -106,12 +102,13 @@ Follow these steps if you want to set up the development environment on your mac
     cd AI-RESUME
     ```
 
-2.  **Create a Virtual Environment:**
+2.  **Create and Activate a Virtual Environment:**
     ```bash
+    # Create the environment
     python -m venv venv
-    # On Windows
+    # Activate on Windows
     .\venv\Scripts\activate
-    # On macOS/Linux
+    # Activate on macOS/Linux
     source venv/bin/activate
     ```
 
@@ -120,29 +117,39 @@ Follow these steps if you want to set up the development environment on your mac
     pip install -r requirements.txt
     ```
 
-4.  **Set Up PostgreSQL:**
-    - Create a new database (e.g., `ai_resume`).
-    - Make sure you have a user and password with access to this database.
+4.  **Create the Database:**
+    Using your preferred PostgreSQL client (e.g., `psql` or a GUI tool), create a new database.
+    ```sql
+    CREATE DATABASE ai_resume_db;
+    ```
 
 5.  **Configure Environment Variables:**
-    The application uses environment variables for database credentials. The easiest way to manage these locally is to create a `.env` file in the project root. **Note: The `.env` file is listed in `.gitignore` and should never be committed to source control.**
-
-    Create a file named `.env` and add the following, replacing the values with your actual database credentials:
-    ```
+    Create a file named `.env` in the project's root directory. This file stores your database credentials and should not be shared.
+    ```env
+    # Database Configuration
     DB_HOST=localhost
     DB_PORT=5432
-    DB_NAME=ai_resume
+    DB_NAME=ai_resume_db
     DB_USER=your_db_user
     DB_PASSWORD=your_db_password
+
+    # Default Admin User
     ADMIN_EMAIL=admin@example.com
     ADMIN_PASSWORD=admin123
+    
+    # API Keys for Generative AI (Optional, but needed for AI features)
+    OPENAI_API_KEY="your-openai-api-key"
+    GROQ_API_KEY="your-groq-api-key"
     ```
 
-6.  **Initialize the Database:**
-    Run the setup script to create the necessary tables and a default admin user. You need to install `python-dotenv` to load the `.env` file.
+6.  **Run Database Migrations:**
+    This command uses Alembic to set up all the necessary tables in your database.
     ```bash
-    pip install python-dotenv
-    python -c "from dotenv import load_dotenv; load_dotenv(); import setup_db"
+    alembic upgrade head
+    ```
+    After running migrations, you can create the default admin user with the script:
+    ```bash
+    python setup_db.py
     ```
 
 7.  **Run the Application:**
@@ -151,32 +158,29 @@ Follow these steps if you want to set up the development environment on your mac
     ```
 
 8.  **Access the Application:**
-    Open your web browser and go to `http://localhost:8501`.
+    Open your browser and go to `http://localhost:8501`.
 
 ---
 
-## ⚙️ Configuration
+## 📝 How to Use the Application
 
-The application is configured via environment variables:
-
-| Variable         | Description                                        | Default              |
-| ---------------- | -------------------------------------------------- | -------------------- |
-| `DB_HOST`        | The hostname of the PostgreSQL server.             | `localhost`          |
-| `DB_PORT`        | The port of the PostgreSQL server.                 | `5432`               |
-| `DB_NAME`        | The name of the database.                          | `ai_resume`          |
-| `DB_USER`        | The username for the database connection.          | `postgres`           |
-| `DB_PASSWORD`    | The password for the database connection.          | `postgres`           |
-| `ADMIN_EMAIL`    | The email for the default admin user on setup.     | `admin@example.com`  |
-| `ADMIN_PASSWORD` | The password for the default admin user on setup.  | `admin123`           |
-
----
-
-## Usage
-
-1.  **Resume Analyzer:** Navigate to the "Resume Analyzer" page, select a job role, and upload your resume (PDF or DOCX) to receive an instant ML-powered analysis and score.
-2.  **Resume Builder:** Use the form to fill in your professional details. Click the "✨" buttons to get AI-generated content for your summary and experience sections.
-3.  **Cover Letter Generator:** Go to the "Cover Letter Generator", paste a job description, and receive a tailored cover letter.
-4.  **Portfolio Viewer:** After adding projects in the builder, view your shareable web portfolio on the "Portfolio Viewer" page.
+1.  **Sign Up / Sign In**: Create a user account or sign in to save and manage your data.
+2.  **Resume Builder**:
+    - Navigate to the **"📝 RESUME BUILDER"** page.
+    - Fill in your personal information, work experience, education, and projects.
+    - Click the "✨" icon next to sections like "Summary" or "Experience" to get AI-generated content suggestions.
+3.  **ATS Resume Optimizer**:
+    - Go to the **"🎯 ATS RESUME OPTIMIZER"**.
+    - Upload your resume (PDF or DOCX).
+    - Paste the job description for the role you're targeting.
+    - Receive an ATS score and detailed feedback on how to improve your resume.
+4.  **Cover Letter Generator**:
+    - Go to the **"✉️ COVER LETTER GENERATOR"**.
+    - If you've filled out the resume builder, your data will be pre-filled.
+    - Paste a job description to generate a tailored cover letter.
+5.  **Portfolio Viewer**:
+    - Add your projects in the resume builder.
+    - View your automatically generated portfolio on the **"🌐 PORTFOLIO VIEWER"** page. You can share the link with recruiters.
 
 ---
 

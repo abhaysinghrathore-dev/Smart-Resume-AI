@@ -16,8 +16,8 @@ def render_home():
             "AI-Powered Analysis",
             "Get instant feedback on your resume with advanced AI analysis that identifies strengths and areas for improvement."
         )
-        if st.button("Go to Analyzer", key="analyzer_btn", use_container_width=True):
-            st.session_state.page = "🔍 RESUME ANALYZER"
+        if st.button("Go to ATS Optimizer", key="analyzer_btn", use_container_width=True):
+            st.session_state.page = "🎯 ATS RESUME OPTIMIZER"
             st.rerun()
 
     with col2:
@@ -33,8 +33,8 @@ def render_home():
     with col3:
         feature_card(
             "fas fa-chart-line",
-            "Career Insights",
-            "Access detailed analytics and personalized recommendations to enhance your career prospects."
+            "Transform your journey with Career Insights",
+            "Gain actionable insights and customized career strategies to drive long-term success."
         )
         if st.button("Go to Insights", key="insights_btn", use_container_width=True):
             st.session_state.page = "Dashboard"
@@ -43,10 +43,10 @@ def render_home():
 
     
     # Call-to-Action with Streamlit navigation
-    col1, col2, col3 = st.columns([1, 1, 1])
-    with col2:
+    col4 = st.columns([30])
+    with col4[0]:
         if st.button("Get Started", key="get_started_btn", 
                     help="Click to start analyzing your resume",
                     use_container_width=True):
-            st.session_state.page = "🔍 RESUME ANALYZER"
+            st.session_state.page = "🎯 ATS RESUME OPTIMIZER"
             st.rerun()

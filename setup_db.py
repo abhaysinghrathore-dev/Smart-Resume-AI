@@ -10,9 +10,13 @@ print("Initializing database...")
 init_database()
 print("Database initialized.")
 
-# Get credentials from environment variables or use defaults (for dev only)
-admin_email = os.getenv('ADMIN_EMAIL', 'admin@example.com')
-admin_password = os.getenv('ADMIN_PASSWORD', 'admin123')
+# Get credentials from environment variables
+admin_email = os.getenv('ADMIN_EMAIL')
+admin_password = os.getenv('ADMIN_PASSWORD')
+
+# Validate that environment variables are set
+if not all([admin_email, admin_password]):
+    raise ValueError("ADMIN_EMAIL and ADMIN_PASSWORD environment variables must be set.")
 
 print("Adding default admin...")
 success = add_admin(admin_email, admin_password)

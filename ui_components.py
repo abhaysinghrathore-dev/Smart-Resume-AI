@@ -2,12 +2,13 @@ import streamlit as st
 from streamlit_lottie import st_lottie
 import html
 import re
-from utils.generative_ai import generate_summary, generate_experience_description, generate_project_description
+from utils.generative_ai import generate_summary, generate_experience_description, generate_project_description, generate_ats_summary
 import time
+from datetime import datetime
 
 def clean_page_name(page_name):
     """Helper to create consistent page keys from display names by removing emojis"""
-    # Remove non-word characters (except spaces), strip, lower, and replace spaces with underscores
+    # Remove non-word characters (except spaces), strip, lower, and replace spaces with underscaces
     text = re.sub(r'[^\w\s]', '', page_name)
     return text.strip().lower().replace(" ", "_")
 
@@ -42,16 +43,136 @@ def hero_section(title, subtitle=None, description=None):
     )
 
 def feature_card(icon, title, description):
-    """Render a modern feature card with hover effects"""
+    """
+    Render a feature card using native Streamlit components.
+    This approach is more secure, maintainable, and responsive.
+    Styling should be applied to the 'stContainer' element and the
+    'feature-icon' class in the main style.css file.
+    """
+    with st.container(border=True):
+        # The icon is still HTML, but we are only injecting a class, which is safer.
+        # For maximum security, one would validate the 'icon' parameter against a
+        # list of allowed FontAwesome class names.
+        st.markdown(f'<i class="{html.escape(icon)} feature-icon"></i>', unsafe_allow_html=True)
+        st.subheader(title)
+        st.write(description)
+
+def circular_progress_card(title, score, status, color):
+    """
+    Renders a card with a circular progress bar.
+    Uses unsafe_allow_html=True for the complex circular graphic,
+    but strictly sanitizes all dynamic inputs to mitigate XSS risk.
+    """
+    # Sanitize all dynamic inputs
+    s_title = html.escape(title)
+    s_score = html.escape(str(score))
+    s_status = html.escape(status)
+    s_color = html.escape(color) # Ensure color is a valid and safe CSS color value
+
     st.markdown(f"""
-        <div class="card feature-card">
-            <div class="feature-icon icon-pulse">
-                <i class="{icon}"></i>
+    <div class="feature-card">
+        <h2>{s_title}</h2>
+        <div class="ats-score-container">
+            <div class="ats-score-circle" style="background: conic-gradient({s_color} 0% {s_score}%, var(--bg-dark) {s_score}% 100%);">
+                <div class="ats-score-inner-circle" style="color: {s_color};">{s_score}</div>
             </div>
-            <h3>{title}</h3>
-            <p>{description}</p>
         </div>
     """, unsafe_allow_html=True)
+
+def skills_match_card(keyword_match):
+    """
+    Renders the Skills Match card using native Streamlit components.
+    """
+    with st.container(border=True):
+        st.subheader("Skills Match")
+        st.metric(label="Keyword Match", value=f"{int(keyword_match.get('score', 0))}%")
+        if keyword_match.get('missing_skills'):
+            st.markdown("#### Missing Skills:")
+            for skill in keyword_match['missing_skills']:
+                st.markdown(f"- {html.escape(skill)}")
+
+def format_section_card(format_score, section_score):
+    """
+    Renders the Format & Section Analysis card using native Streamlit components.
+    """
+    with st.container(border=True):
+        st.subheader("Format & Section Analysis")
+        st.metric("Format Score", f"{int(format_score)}%")
+        st.metric("Section Score", f"{int(section_score)}%")
+
+def suggestions_card(suggestions):
+    """
+    Renders the Resume Improvement Suggestions card using native Streamlit components.
+    """
+    with st.container(border=True):
+        st.subheader("📋 Resume Improvement Suggestions")
+        if suggestions:
+            for suggestion in suggestions:
+                # Use st.markdown for the icon and text, ensuring sanitization
+                # For FontAwesome icons, we still need unsafe_allow_html=True, but content is sanitized
+                icon_class = html.escape(suggestion.get('icon', 'fa-check-circle'))
+                suggestion_text = html.escape(suggestion.get('text'))
+                st.markdown(f"<div class='suggestion-item'><i class='fas {icon_class}'></i> {suggestion_text}</div>", unsafe_allow_html=True)
+        else:
+            st.markdown("<div class='suggestion-item'><i class='fas fa-star'></i> Your resume looks great! No immediate suggestions.</div>", unsafe_allow_html=True)
+
+def course_recommendations_card(selected_role):
+    """
+    Renders the Recommended Courses card using native Streamlit components.
+    """
+    from config.courses import COURSES_BY_CATEGORY, get_courses_for_role, get_category_for_role
+
+    with st.container(border=True):
+        st.subheader("📚 Recommended Courses")
+        
+        courses = get_courses_for_role(selected_role)
+        if not courses:
+            category = get_category_for_role(selected_role)
+            courses = COURSES_BY_CATEGORY.get(category, {}).get(selected_role, [])
+        
+        if courses:
+            cols_courses = st.columns(2)
+            for i, course in enumerate(courses[:6]):
+                with cols_courses[i % 2]:
+                    # Inner course card - still uses unsafe_allow_html for link to external content
+                    # but content is sanitized.
+                    course_title = html.escape(course[0])
+                    course_url = html.escape(course[1])
+                    st.markdown(f"""
+                    <div class="course-card">
+                        <h4>{course_title}</h4>
+                        <a href='{course_url}' target='_blank' class="course-link">View Course</a>
+                    </div>
+                    """, unsafe_allow_html=True)
+        else:
+            st.info("No course recommendations available for this role yet.")
+
+def helpful_videos_card():
+    """
+    Renders the Helpful Videos card using native Streamlit components.
+    """
+    from config.courses import RESUME_VIDEOS, INTERVIEW_VIDEOS
+
+    with st.container(border=True):
+        st.subheader("📺 Helpful Videos")
+        
+        tab1, tab2 = st.tabs(["Resume Tips", "Interview Tips"])
+        
+        with tab1:
+            for category, videos in RESUME_VIDEOS.items():
+                st.markdown(f"**{html.escape(category)}**") # Use markdown for bold category
+                cols_videos = st.columns(2)
+                for i, video in enumerate(videos):
+                    with cols_videos[i % 2]:
+                        st.video(video[1])
+        
+        with tab2:
+            for category, videos in INTERVIEW_VIDEOS.items():
+                st.markdown(f"**{html.escape(category)}**") # Use markdown for bold category
+                cols_videos = st.columns(2)
+                for i, video in enumerate(videos):
+                    with cols_videos[i % 2]:
+                        st.video(video[1])
 
 def profile_section(content, image_path=None, social_links=None):
     """Render a modern about section with profile image and social links"""
@@ -83,21 +204,14 @@ def profile_section(content, image_path=None, social_links=None):
         </div>
     """, unsafe_allow_html=True)
 
-def metric_card(label, value, delta=None, icon=None):
-    """Render a modern metric card with animations"""
-    icon_html = f'<i class="{icon}"></i>' if icon else ''
-    delta_html = f'<div class="metric-delta">{delta}</div>' if delta else ''
-    
-    st.markdown(f"""
-        <div class="metric-card">
-            <div class="metric-header">
-                {icon_html}
-                <div class="metric-label">{label}</div>
-            </div>
-            <div class="metric-value">{value}</div>
-            {delta_html}
-        </div>
-    """, unsafe_allow_html=True)
+def metric_card(label, value, delta=None, icon_emoji=None):
+    """
+    Render a metric card using native Streamlit's st.metric component.
+    This provides a secure, maintainable, and responsive way to display metrics.
+    Icon is replaced with an emoji in the label for native component compatibility.
+    """
+    display_label = f"{icon_emoji} {label}" if icon_emoji else label
+    st.metric(label=display_label, value=value, delta=delta)
 
 def template_card(title, description, image_url=None):
     """Render a modern template card with glassmorphism effect"""
@@ -378,133 +492,381 @@ def render_personal_info_form(personal_info):
     with col1:
         personal_info['full_name'] = st.text_input("Full Name", value=personal_info.get('full_name', ''))
         personal_info['email'] = st.text_input("Email", value=personal_info.get('email', ''), key="email_input")
-        personal_info['phone'] = st.text_input("Phone", value=personal_info.get('phone', ''))
+        st.write("**Phone Number**")
+        phone_col1, phone_col2 = st.columns([0.2, 0.2])
+        
+        # Country codes with country names
+        country_options = {
+            "🇮🇳 India (+91)": "+91",
+            "🇺🇸 USA (+1)": "+1",
+            "🇬🇧 UK (+44)": "+44",
+            "🇦🇺 Australia (+61)": "+61",
+            "🇯🇵 Japan (+81)": "+81",
+            "🇨🇳 China (+86)": "+86",
+            "🇩🇪 Germany (+49)": "+49",
+            "🇫🇷 France (+33)": "+33",
+            "🇮🇹 Italy (+39)": "+39",
+            "🇪🇸 Spain (+34)": "+34",
+            "🇷🇺 Russia (+7)": "+7",
+            "🇨🇦 Canada (+1)": "+1",
+        }
+        
+        with phone_col1:
+            existing_phone = personal_info.get('phone', '')
+            default_country_code = "+91" 
+            phone_number_only = existing_phone
+
+            if existing_phone:
+                for code in country_options.values():
+                    if existing_phone.startswith(code):
+                        default_country_code = code
+                        phone_number_only = existing_phone[len(code):].strip()
+                        break
+            
+            default_display = "🇮🇳 India (+91)"
+            for display, code in country_options.items():
+                if code == default_country_code:
+                    default_display = display
+                    break
+            
+            selected_country = st.selectbox(
+                "Country",
+                options=list(country_options.keys()),
+                index=list(country_options.keys()).index(default_display) if default_display in country_options.keys() else 0,
+                key="country_code_select",
+                label_visibility="collapsed"
+            )
+            
+            country_code = country_options[selected_country]
+            
+        with phone_col2:
+            phone_number = st.text_input(
+                "Number",
+                value=phone_number_only,
+                placeholder="Enter phone number",
+                key="phone_number_input",
+                label_visibility="collapsed"
+            )
+        
+        personal_info['phone'] = f"{country_code} {phone_number}".strip() if phone_number else ""
     with col2:
         personal_info['location'] = st.text_input("Location", value=personal_info.get('location', ''))
         personal_info['linkedin'] = st.text_input("LinkedIn URL", value=personal_info.get('linkedin', ''))
-        personal_info['github'] = st.text_input("GitHub Profile", value=personal_info.get('github', ''))
+        personal_info['github'] = st.text_input("GitHub URL", value=personal_info.get('github', ''))
     return personal_info
 
-def render_summary_form(summary):
+def render_summary_form():
     st.subheader("Professional Summary")
-    
-    # Text area for the summary
-    summary_text = st.text_area("Professional Summary", value=summary, height=150, 
-                                help="Write a brief summary or click 'Generate with AI' to create one.")
-    
-    # AI generation button
-    if st.button("✨ Generate with AI", key="generate_summary"):
-        with st.spinner("🧠 AI is crafting your summary..."):
-            # A real app might pass keywords from skills or job descriptions
-            generated_summary = generate_summary(summary_text, keywords=["Software Engineer"])
-            st.session_state.form_data['summary'] = generated_summary
-            st.rerun()
 
+    summary_text = st.text_area("Professional Summary", 
+                                value=st.session_state.form_data.get('summary', ''), 
+                                height=150,
+                                help="Write a brief summary about your professional background.",
+                                key="summary_text_area")
+    
+    st.session_state.form_data['summary'] = summary_text
     return summary_text
 
 def render_experience_form(experiences):
-    st.subheader("Work Experience")
-    if st.button("Add Experience"):
-        experiences.append({
-            'company': '',
-            'position': '',
-            'start_date': '',
-            'end_date': '',
-            'description': '',
-            'responsibilities': [],
-            'achievements': []
-        })
-        st.session_state.form_data['experiences'] = experiences # Update session state immediately
-        st.rerun()
-
-    for idx, exp in enumerate(experiences):
-        with st.expander(f"Experience {idx + 1}", expanded=True):
+    """Render the work experience form section with enhanced date picker"""
+    st.header("💼 Work Experience")
+    
+    if 'experience_count' not in st.session_state:
+        st.session_state.experience_count = len(experiences) if experiences else 1
+    
+    if st.button("➕ Add Experience", key="add_experience"):
+        st.session_state.experience_count += 1
+    
+    updated_experiences = []
+    
+    # Month options
+    months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec']
+    current_year = datetime.now().year
+    years = list(range(current_year - 30, current_year + 2))  # Last 30 years to next year
+    
+    for i in range(st.session_state.experience_count):
+        with st.expander(f"Experience {i+1}", expanded=(i == 0)):
+            # Get existing data if available
+            existing_exp = experiences[i] if i < len(experiences) else {}
+            
             col1, col2 = st.columns(2)
+            
             with col1:
-                exp['company'] = st.text_input("Company Name", key=f"company_{idx}", value=exp.get('company', ''))
-                exp['position'] = st.text_input("Position", key=f"position_{idx}", value=exp.get('position', ''))
+                position = st.text_input(
+                    "Position/Job Title*",
+                    value=existing_exp.get('position', ''),
+                    key=f"exp_position_{i}",
+                    placeholder="e.g., Software Engineer"
+                )
+                
+                company = st.text_input(
+                    "Company Name*",
+                    value=existing_exp.get('company', ''),
+                    key=f"exp_company_{i}",
+                    placeholder="e.g., Google"
+                )
+                
+                location = st.text_input(
+                    "Location",
+                    value=existing_exp.get('location', ''),
+                    key=f"exp_location_{i}",
+                    placeholder="e.g., San Francisco, CA"
+                )
+            
             with col2:
-                exp['start_date'] = st.text_input("Start Date", key=f"start_date_{idx}", value=exp.get('start_date', ''))
-                exp['end_date'] = st.text_input("End Date", key=f"end_date_{idx}", value=exp.get('end_date', ''))
+                work_mode = st.selectbox(
+                    "Work Mode",
+                    options=["On-site", "Remote", "Hybrid"],
+                    index=["On-site", "Remote", "Hybrid"].index(existing_exp.get('work_mode', 'On-site')) if existing_exp.get('work_mode') in ["On-site", "Remote", "Hybrid"] else 0,
+                    key=f"exp_work_mode_{i}"
+                )
+                
+                
+                with col2:
+                    st.write("**Start Date**")
+                    start_month = st.selectbox(
+                        "Month",
+                        options=months,
+                        index=months.index(existing_exp.get('start_month', 'Jan')) if existing_exp.get('start_month') in months else 0,
+                        key=f"exp_start_month_{i}"
+                    )
+                with col2:
+                    start_year = st.selectbox(
+                        "Year",
+                        options=years,
+                        index=years.index(existing_exp.get('start_year', current_year)) if existing_exp.get('start_year') in years else len(years)-1,
+                        key=f"exp_start_year_{i}"
+                    )
+                
             
-            st.markdown("##### Key Responsibilities & Achievements (as bullet points)")
-            # Combine responsibilities and achievements for AI processing
-            bullet_points_text = st.text_area("Enter responsibilities and achievements (one per line)", 
-                                   key=f"bullets_{idx}",
-                                   value='\n'.join(exp.get('responsibilities', []) + exp.get('achievements', [])),
-                                   height=120,
-                                   help="List your main responsibilities and achievements as bullet points.")
+                with col2:
+                    st.write("**End Date**")
+                    end_month = st.selectbox(
+                        "Month",
+                        options=months,
+                        index=months.index(existing_exp.get('end_month', 'Dec')) if existing_exp.get('end_month') in months else 11,
+                        key=f"exp_end_month_{i}",
+                        disabled=existing_exp.get('is_present', False)
+                    )
+                with col2:
+                    end_year = st.selectbox(
+                        "Year",
+                        options=years,
+                        index=years.index(existing_exp.get('end_year', current_year)) if existing_exp.get('end_year') in years else len(years)-1,
+                        key=f"exp_end_year_{i}",
+                        disabled=existing_exp.get('is_present', False)
+                    )
+                with col2:
+                    st.write("")  # Spacing
+                    is_present = st.checkbox(
+                        "Present",
+                        value=existing_exp.get('is_present', False),
+                        key=f"exp_present_{i}"
+                    )
             
-            bullet_points = [p.strip() for p in bullet_points_text.split('\n') if p.strip()]
-
-            if st.button("✨ Improve with AI", key=f"improve_exp_{idx}"):
-                with st.spinner("🤖 Rewriting your experience..."):
-                    generated_desc = generate_experience_description(exp.get('company'), exp.get('position'), bullet_points)
-                    st.session_state.form_data['experiences'][idx]['description'] = generated_desc
-                    st.rerun()
-
-            st.markdown("##### Generated Role Overview")
-            exp['description'] = st.text_area("Role Overview", key=f"desc_{idx}", 
-                                            value=exp.get('description', ''),
-                                            height=150,
-                                            help="This will be auto-generated by the AI or can be written manually.")
+            # Responsibilities section
+            st.write("**Key Responsibilities & Achievements:**")
+            st.caption("Use bullet points starting with strong action verbs (Developed, Led, Implemented, etc.)")
             
-            if st.button("Remove Experience", key=f"remove_exp_{idx}"):
-                experiences.pop(idx)
-                st.session_state.form_data['experiences'] = experiences # Update session state immediately
+            # Get existing responsibilities
+            existing_responsibilities = existing_exp.get('responsibilities', [''])
+            if not existing_responsibilities:
+                existing_responsibilities = ['']
+            
+            # Dynamic responsibility points
+            if f'responsibility_count_{i}' not in st.session_state:
+                st.session_state[f'responsibility_count_{i}'] = max(len(existing_responsibilities), 3)
+            
+            responsibilities = []
+            for j in range(st.session_state[f'responsibility_count_{i}']):
+                resp = st.text_input(
+                    f"Point {j+1}",
+                    value=existing_responsibilities[j] if j < len(existing_responsibilities) else '',
+                    key=f"exp_resp_{i}_{j}",
+                    placeholder=f"e.g., Developed Python-based REST APIs, reducing data processing time by 25%"
+                )
+                if resp.strip():
+                    responsibilities.append(resp.strip())
+            
+            # Add more points button
+            if st.button(f"➕ Add More Points", key=f"add_resp_{i}"):
+                st.session_state[f'responsibility_count_{i}'] += 1
                 st.rerun()
-    return experiences
-
-def render_projects_form(projects):
-    st.subheader("Projects")
-    if st.button("Add Project"):
-        projects.append({
-            'name': '',
-            'technologies': '',
-            'description': '',
-            'responsibilities': [],
-            'achievements': [],
-            'link': ''
-        })
-        st.session_state.form_data['projects'] = projects # Update session state immediately
-        st.rerun()
-
-    for idx, proj in enumerate(projects):
-        with st.expander(f"Project {idx + 1}", expanded=True):
-            proj['name'] = st.text_input("Project Name", key=f"proj_name_{idx}", value=proj.get('name', ''))
-            proj['technologies'] = st.text_input("Technologies Used", key=f"proj_tech_{idx}", 
-                                               value=proj.get('technologies', ''),
-                                               help="List the main technologies, frameworks, and tools used")
             
-            st.markdown("##### Key Responsibilities & Achievements (as bullet points)")
-            bullet_points_text = st.text_area("Enter responsibilities and achievements (one per line)", 
-                                        key=f"proj_bullets_{idx}",
-                                        value='\n'.join(proj.get('responsibilities', []) + proj.get('achievements', [])),
-                                        height=120,
-                                        help="List your main responsibilities and achievements in the project.")
+            if position and company:
+                exp_data = {
+                    'position': position,
+                    'company': company,
+                    'location': location,
+                    'work_mode': work_mode,  # ADDED BACK
+                    'start_month': start_month,
+                    'start_year': start_year,
+                    'end_month': end_month if not is_present else '',
+                    'end_year': end_year if not is_present else '',
+                    'is_present': is_present,
+                    'start_date': f"{start_month} {start_year}",
+                    'end_date': "Present" if is_present else f"{end_month} {end_year}",
+                    'responsibilities': responsibilities
+                }
+                updated_experiences.append(exp_data)
             
-            bullet_points = [p.strip() for p in bullet_points_text.split('\n') if p.strip()]
-
-            if st.button("✨ Improve with AI", key=f"improve_proj_{idx}"):
-                with st.spinner("🤖 Rewriting your project description..."):
-                    generated_desc = generate_project_description(proj.get('name'), proj.get('technologies'), bullet_points)
-                    st.session_state.form_data['projects'][idx]['description'] = generated_desc
-                    st.rerun()
-
-            st.markdown("##### Generated Project Overview")
-            proj['description'] = st.text_area("Project Overview", key=f"proj_desc_{idx}", 
-                                             value=proj.get('description', ''),
-                                             height=150,
-                                             help="This will be auto-generated by the AI or can be written manually.")
-            
-            proj['link'] = st.text_input("Project Link (optional)", key=f"proj_link_{idx}", 
-                                       value=proj.get('link', ''),
-                                       help="Link to the project repository, demo, or documentation")
-            
-            if st.button("Remove Project", key=f"remove_proj_{idx}"):
-                projects.pop(idx)
-                st.session_state.form_data['projects'] = projects # Update session state immediately
+            if st.button(f"🗑️ Remove Experience {i+1}", key=f"remove_exp_{i}"):
+                st.session_state.experience_count -= 1
+                if f'responsibility_count_{i}' in st.session_state:
+                    del st.session_state[f'responsibility_count_{i}']
                 st.rerun()
+    
+    return updated_experiences
+
+def render_projects_form(projects_data):
+    """Render the projects form section with enhanced date picker"""
+    st.header("💼 Projects")
+    
+    if 'project_count' not in st.session_state:
+        st.session_state.project_count = len(projects_data) if projects_data else 1
+    
+    if st.button("➕ Add Project", key="add_project"):
+        st.session_state.project_count += 1
+    
+    projects = []
+    
+    # Month options
+    months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec']
+    current_year = datetime.now().year
+    years = list(range(current_year - 10, current_year + 2))  # Last 10 years to next year
+    
+    for i in range(st.session_state.project_count):
+        with st.expander(f"Project {i+1}", expanded=(i == 0)):
+            # Get existing data if available
+            existing_project = projects_data[i] if i < len(projects_data) else {}
+            
+            col1, col2 = st.columns(2)
+            
+            with col1:
+                name = st.text_input(
+                    "Project Name*",
+                    value=existing_project.get('name', ''),
+                    key=f"project_name_{i}",
+                    placeholder="e.g., E-commerce Platform"
+                )
+                
+                technologies = st.text_input(
+                    "Technologies Used*",
+                    value=existing_project.get('technologies', ''),
+                    key=f"project_tech_{i}",
+                    placeholder="e.g., React, Node.js, MongoDB"
+                )
+            
+            with col2:
+                st.write("**Start Date**")
+                with col2:
+                    start_month = st.selectbox(
+                        "Month",
+                        options=months,
+                        index=months.index(existing_project.get('start_month', 'Jan')) if existing_project.get('start_month') in months else 0,
+                        key=f"proj_start_month_{i}"
+                    )
+                with col2:
+                    start_year = st.selectbox(
+                        "Year",
+                        options=years,
+                        index=years.index(existing_project.get('start_year', current_year)) if existing_project.get('start_year') in years else len(years)-1,
+                        key=f"proj_start_year_{i}"
+                    )
+                
+                
+                with col2:
+                    st.write("**End Date**")
+                    end_month = st.selectbox(
+                        "Month",
+                        options=months,
+                        index=months.index(existing_project.get('end_month', 'Dec')) if existing_project.get('end_month') in months else 11,
+                        key=f"proj_end_month_{i}",
+                        disabled=existing_project.get('is_ongoing', False)
+                    )
+                with col2:
+                    end_year = st.selectbox(
+                        "Year",
+                        options=years,
+                        index=years.index(existing_project.get('end_year', current_year)) if existing_project.get('end_year') in years else len(years)-1,
+                        key=f"proj_end_year_{i}",
+                        disabled=existing_project.get('is_ongoing', False)
+                    )
+                with col2:
+                    st.write("")  # Spacing
+                    is_ongoing = st.checkbox(
+                        "Ongoing",
+                        value=existing_project.get('is_ongoing', False),
+                        key=f"proj_ongoing_{i}"
+                    )
+            
+            # GitHub Link
+            github_link = st.text_input(
+                "Project GitHub URL",
+                value=existing_project.get('github_link', ''),
+                key=f"project_github_{i}",
+                placeholder="https://github.com/username/project-name"
+            )
+            
+            description = st.text_area(
+                "Project Description",
+                value=existing_project.get('description', ''),
+                key=f"project_desc_{i}",
+                placeholder="Brief overview of the project",
+                height=80
+            )
+            
+            st.write("**Key Achievements/Features:**")
+            st.caption("Highlight technical implementation, challenges solved, and impact")
+            
+            # Get existing key points
+            existing_points = existing_project.get('key_points', [''])
+            if not existing_points:
+                existing_points = ['']
+            
+            # Dynamic key points
+            if f'project_point_count_{i}' not in st.session_state:
+                st.session_state[f'project_point_count_{i}'] = max(len(existing_points), 3)
+            
+            key_points = []
+            for j in range(st.session_state[f'project_point_count_{i}']):
+                point = st.text_input(
+                    f"Point {j+1}",
+                    value=existing_points[j] if j < len(existing_points) else '',
+                    key=f"project_point_{i}_{j}",
+                    placeholder=f"e.g., Implemented user authentication using JWT, supporting 10,000+ users"
+                )
+                if point.strip():
+                    key_points.append(point.strip())
+            
+            # Add more points button
+            if st.button(f"➕ Add More Points", key=f"add_proj_point_{i}"):
+                st.session_state[f'project_point_count_{i}'] += 1
+                st.rerun()
+            
+            if name and technologies:
+                project_data = {
+                    'name': name,
+                    'technologies': technologies,
+                    'start_month': start_month,
+                    'start_year': start_year,
+                    'end_month': end_month if not is_ongoing else '',
+                    'end_year': end_year if not is_ongoing else '',
+                    'is_ongoing': is_ongoing,
+                    'start_date': f"{start_month} {start_year}",
+                    'end_date': "Present" if is_ongoing else f"{end_month} {end_year}",
+                    'github_link': github_link,
+                    'description': description,
+                    'key_points': key_points
+                }
+                projects.append(project_data)
+            
+            if st.button(f"🗑️ Remove Project {i+1}", key=f"remove_project_{i}"):
+                st.session_state.project_count -= 1
+                if f'project_point_count_{i}' in st.session_state:
+                    del st.session_state[f'project_point_count_{i}']
+                st.rerun()
+    
     return projects
 
 def render_education_form(education):
@@ -518,7 +880,7 @@ def render_education_form(education):
             'gpa': '',
             'achievements': []
         })
-        st.session_state.form_data['education'] = education # Update session state immediately
+        st.session_state.form_data['education'] = education
         st.rerun()
 
     for idx, edu in enumerate(education):
@@ -544,85 +906,145 @@ def render_education_form(education):
             
             if st.button("Remove Education", key=f"remove_edu_{idx}"):
                 education.pop(idx)
-                st.session_state.form_data['education'] = education # Update session state immediately
+                st.session_state.form_data['education'] = education
                 st.rerun()
     return education
 
 def render_skills_form(skills_categories):
+    """Render skills form without certifications"""
     st.subheader("Skills")
-    col1, col2 = st.columns(2)
-    with col1:
-        tech_skills = st.text_area("Technical Skills (one per line)", 
-                                 value='\n'.join(skills_categories.get('technical', [])),
-                                 height=150,
-                                 help="Programming languages, frameworks, databases, etc.")
-        skills_categories['technical'] = [s.strip() for s in tech_skills.split('\n') if s.strip()]
-        
-        soft_skills = st.text_area("Soft Skills (one per line)", 
-                                 value='\n'.join(skills_categories.get('soft', [])),
-                                 height=150,
-                                 help="Leadership, communication, problem-solving, etc.")
-        skills_categories['soft'] = [s.strip() for s in soft_skills.split('\n') if s.strip()]
     
+    # Updated skill categories (removed certifications)
+    skill_categories_config = {
+        'programming_languages': 'Programming Languages',
+        'frameworks_libraries': 'Frameworks & Libraries',
+        'developer_tools': 'Developer Tools',
+        'databases': 'Databases',
+        'cloud_devops': 'Cloud & DevOps'
+    }
+    
+    # Initialize skills_categories if it's not already in a dictionary format
+    if not isinstance(skills_categories, dict):
+        skills_categories = {key: [] for key in skill_categories_config.keys()}
+
+    # Create two columns for the layout
+    col1, col2 = st.columns(2)
+    
+    # Split the categories between the two columns
+    categories_list = list(skill_categories_config.items())
+    mid_point = (len(categories_list) + 1) // 2
+    
+    with col1:
+        for key, label in categories_list[:mid_point]:
+            skills_text = st.text_area(label, 
+                                     value='\n'.join(skills_categories.get(key, [])),
+                                     height=120,
+                                     key=f"skills_{key}")
+            skills_categories[key] = [s.strip() for s in skills_text.split('\n') if s.strip()]
+            
     with col2:
-        languages = st.text_area("Languages (one per line)", 
-                               value='\n'.join(skills_categories.get('languages', [])),
-                               height=150,
-                               help="Programming or human languages with proficiency level")
-        skills_categories['languages'] = [l.strip() for l in languages.split('\n') if l.strip()]
-        
-        tools = st.text_area("Tools & Technologies (one per line)", 
-                           value='\n'.join(skills_categories.get('tools', [])),
-                           height=150,
-                           help="Development tools, software, platforms, etc.")
-        skills_categories['tools'] = [t.strip() for t in tools.split('\n') if t.strip()]
+        for key, label in categories_list[mid_point:]:
+            skills_text = st.text_area(label, 
+                                     value='\n'.join(skills_categories.get(key, [])),
+                                     height=120,
+                                     key=f"skills_{key}")
+            skills_categories[key] = [s.strip() for s in skills_text.split('\n') if s.strip()]
+            
     return skills_categories
 
-def render_sidebar(pages, load_lottie_url, is_admin, current_admin_email, verify_admin, log_admin_action):
-    with st.sidebar:
-        # Custom CSS for sidebar styling
-        st.markdown("""
-<style>
-/* Sidebar container */
-section[data-testid="stSidebar"] {
-    background-color: #2f343a;
-}
-
-/* Navigation buttons in the sidebar */
-section[data-testid="stSidebar"] .stButton button {
-    padding: 14px 18px;
-    margin-bottom: 10px;
-    border-radius: 10px;
-    color: white;
-    font-weight: 500;
-    cursor: pointer;
-    transition: color 0.25s ease, background-color 0.25s ease;
+def render_certifications_form(certifications_data):
+    """Render the new Certifications & Achievements section"""
+    st.header("🏆 Certifications & Achievements")
+    st.caption("Add certifications with verification links for ATS optimization")
     
-    /* Make the button background transparent to see the sidebar color */
-    background-color: transparent;
-    border: none;
-    width: 100%;
-    text-align: left;
-}
+    if 'certification_count' not in st.session_state:
+        st.session_state.certification_count = len(certifications_data) if certifications_data else 1
+    
+    if st.button("➕ Add Certification/Achievement", key="add_cert"):
+        st.session_state.certification_count += 1
+    
+    certifications = []
+    
+    # Month options for issue date
+    months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec']
+    current_year = datetime.now().year
+    years = list(range(current_year - 10, current_year + 2))
+    
+    for i in range(st.session_state.certification_count):
+        with st.expander(f"Certification/Achievement {i+1}", expanded=(i == 0)):
+            # Get existing data if available
+            existing_cert = certifications_data[i] if i < len(certifications_data) else {}
+            
+            col1, col2 = st.columns(2)
+            
+            with col1:
+                name = st.text_input(
+                    "Certification/Achievement Name*",
+                    value=existing_cert.get('name', ''),
+                    key=f"cert_name_{i}",
+                    placeholder="e.g., AWS Certified Solutions Architect – Associate"
+                )
+                
+                issuer = st.text_input(
+                    "Issuing Organization",
+                    value=existing_cert.get('issuer', ''),
+                    key=f"cert_issuer_{i}",
+                    placeholder="e.g., Amazon Web Services"
+                )
+            
+            with col2:
+                st.write("**Issue Date**")
+                col_month, col_year = st.columns(2)
+                with col_month:
+                    issue_month = st.selectbox(
+                        "Month",
+                        options=months,
+                        index=months.index(existing_cert.get('issue_month', 'Jan')) if existing_cert.get('issue_month') in months else 0,
+                        key=f"cert_month_{i}"
+                    )
+                with col_year:
+                    issue_year = st.selectbox(
+                        "Year",
+                        options=years,
+                        index=years.index(existing_cert.get('issue_year', current_year)) if existing_cert.get('issue_year') in years else len(years)-1,
+                        key=f"cert_year_{i}"
+                    )
+                
+                credential_id = st.text_input(
+                    "Credential ID (optional)",
+                    value=existing_cert.get('credential_id', ''),
+                    key=f"cert_cred_{i}",
+                    placeholder="e.g., ABC123XYZ"
+                )
+            
+            verification_url = st.text_input(
+                "Verification URL (optional)",
+                value=existing_cert.get('verification_url', ''),
+                key=f"cert_url_{i}",
+                placeholder="https://www.credly.com/badges/..."
+            )
+            
+            if name:
+                cert_data = {
+                    'name': name,
+                    'issuer': issuer,
+                    'issue_month': issue_month,
+                    'issue_year': issue_year,
+                    'issue_date': f"{issue_month} {issue_year}",
+                    'credential_id': credential_id,
+                    'verification_url': verification_url
+                }
+                certifications.append(cert_data)
+            
+            if st.button(f"🗑️ Remove Certification {i+1}", key=f"remove_cert_{i}"):
+                st.session_state.certification_count -= 1
+                st.rerun()
+    
+    return certifications
 
-/* Hover effect for navigation buttons */
-section[data-testid="stSidebar"] .stButton button:hover {
-    color: #1e90ff; /* blue */
-    background-color: rgba(255, 255, 255, 0.06);
-}
-
-/* Make sure the text inside the button is white */
-section[data-testid="stSidebar"] .stButton button p {
-    color: white;
-}
-
-/* Hover effect for the text inside the button */
-section[data-testid="stSidebar"] .stButton button:hover p {
-    color: #1e90ff; /* blue */
-}
-
-</style>
-        """, unsafe_allow_html=True)
+def render_sidebar(pages, load_lottie_url, is_admin, current_admin_email, verify_admin, log_admin_action, is_logged_in, user_email):
+    with st.sidebar:
+        # Custom CSS for sidebar styling is now in style/style.css
 
         st_lottie(load_lottie_url("https://assets5.lottiefiles.com/packages/lf20_xyadoh9h.json"), height=180, key="sidebar_animation")
         st.markdown('<div class="sidebar-header">Smart Resume AI</div>', unsafe_allow_html=True)
@@ -630,12 +1052,20 @@ section[data-testid="stSidebar"] .stButton button:hover p {
         
         # Navigation buttons
         st.markdown("### 🧭 Menu")
-        for page_name in pages.keys():
+        
+        # Filter pages based on authentication status
+        if is_logged_in or is_admin:
+            pages_to_show = {k: v for k, v in pages.items() if k not in ["🔑 SIGN IN", "📝 SIGN UP"]}
+        else:
+            pages_to_show = {k: v for k, v in pages.items() if k not in ["📊 DASHBOARD"]}
+
+
+        for page_name in pages_to_show.keys():
             if st.button(page_name, width='stretch', key=f"nav_btn_{page_name}"):
                 st.session_state.page = clean_page_name(page_name)
                 st.rerun()
 
-        # Add some space before admin login
+        # Add some space before login/logout
         st.markdown("<br>", unsafe_allow_html=True)
         st.markdown("---")
         
@@ -651,6 +1081,16 @@ section[data-testid="stSidebar"] .stButton button:hover p {
                     st.rerun()
                 except Exception as e:
                     st.error(f"Error: {str(e)}")
+        
+        # User Login/Logout section
+        elif is_logged_in:
+            st.success(f"👤 {user_email}")
+            if st.button("🚪 Sign Out", key="signout_button", type="primary"):
+                st.session_state.is_logged_in = False
+                st.session_state.user_email = None
+                st.success("Signed out successfully!")
+                st.rerun()
+
         else:
             with st.expander("🔐 Admin Access"):
                 admin_email_input = st.text_input("Email", key="admin_email_input")

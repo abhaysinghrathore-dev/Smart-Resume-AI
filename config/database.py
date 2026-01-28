@@ -1,360 +1,326 @@
-import psycopg2
-from psycopg2.extras import RealDictCursor
-from datetime import datetime
-import bcrypt
-import logging
 import os
+import logging
+from contextlib import contextmanager
+from datetime import datetime, timedelta
+
+import bcrypt
+import streamlit as st
+from dotenv import load_dotenv
+from sqlalchemy import create_engine, func
+from sqlalchemy.orm import sessionmaker
+from sqlalchemy.exc import IntegrityError
+
+from .models import (
+    Admin, AdminLog, User, PasswordResetToken,
+    ResumeData, Experience, Education, Project, ResumeAnalysis
+)
 
 logger = logging.getLogger(__name__)
 
-def get_database_connection():
-    """Create and return a PostgreSQL database connection"""
+# --- SQLAlchemy Engine and Session Setup ---
+
+@st.cache_resource
+def get_engine():
+    """Create and cache the SQLAlchemy engine."""
+    load_dotenv(override=True)
+    
+    db_url = None
     try:
-        conn = psycopg2.connect(
-            host=os.environ.get("DB_HOST", "localhost"),
-            dbname=os.environ.get("DB_NAME", "ai_resume"),
-            user=os.environ.get("DB_USER", "postgres"),
-            password=os.environ.get("DB_PASSWORD", "postgres"),
-            port=os.environ.get("DB_PORT", "5432")
-        )
-        return conn
-    except psycopg2.OperationalError as e:
-        logger.error(f"Could not connect to PostgreSQL database: {e}", exc_info=True)
-        raise
-
-def init_database():
-    """Initialize database tables for PostgreSQL"""
-    conn = get_database_connection()
-    cursor = conn.cursor()
-    
-    # Create resume_data table (normalized)
-    cursor.execute('''
-    CREATE TABLE IF NOT EXISTS resume_data (
-        id SERIAL PRIMARY KEY,
-        name TEXT NOT NULL,
-        email TEXT NOT NULL,
-        phone TEXT NOT NULL,
-        linkedin TEXT,
-        github TEXT,
-        portfolio TEXT,
-        summary TEXT,
-        target_role TEXT,
-        target_category TEXT,
-        skills TEXT,
-        template TEXT,
-        created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
-    )
-    ''')
-
-    # Create experiences table
-    cursor.execute('''
-    CREATE TABLE IF NOT EXISTS experiences (
-        id SERIAL PRIMARY KEY,
-        resume_id INTEGER,
-        company TEXT,
-        position TEXT,
-        start_date TEXT,
-        end_date TEXT,
-        description TEXT,
-        FOREIGN KEY (resume_id) REFERENCES resume_data (id) ON DELETE CASCADE
-    )
-    ''')
-
-    # Create education table
-    cursor.execute('''
-    CREATE TABLE IF NOT EXISTS education (
-        id SERIAL PRIMARY KEY,
-        resume_id INTEGER,
-        school TEXT,
-        degree TEXT,
-        field TEXT,
-        graduation_date TEXT,
-        gpa TEXT,
-        FOREIGN KEY (resume_id) REFERENCES resume_data (id) ON DELETE CASCADE
-    )
-    ''')
-
-    # Create projects table
-    cursor.execute('''
-    CREATE TABLE IF NOT EXISTS projects (
-        id SERIAL PRIMARY KEY,
-        resume_id INTEGER,
-        name TEXT,
-        technologies TEXT,
-        description TEXT,
-        link TEXT,
-        FOREIGN KEY (resume_id) REFERENCES resume_data (id) ON DELETE CASCADE
-    )
-    ''')
-    
-    # Create resume_skills table
-    cursor.execute('''
-    CREATE TABLE IF NOT EXISTS resume_skills (
-        id SERIAL PRIMARY KEY,
-        resume_id INTEGER,
-        skill_name TEXT NOT NULL,
-        skill_category TEXT NOT NULL,
-        proficiency_score REAL,
-        created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
-        FOREIGN KEY (resume_id) REFERENCES resume_data (id) ON DELETE CASCADE
-    )
-    ''')
-    
-    # Create resume_analysis table
-    cursor.execute('''
-    CREATE TABLE IF NOT EXISTS resume_analysis (
-        id SERIAL PRIMARY KEY,
-        resume_id INTEGER,
-        ats_score REAL,
-        keyword_match_score REAL,
-        format_score REAL,
-        section_score REAL,
-        missing_skills TEXT,
-        recommendations TEXT,
-        created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
-        FOREIGN KEY (resume_id) REFERENCES resume_data (id) ON DELETE CASCADE
-    )
-    ''')
-    
-    # Create admin_logs table
-    cursor.execute('''
-    CREATE TABLE IF NOT EXISTS admin_logs (
-        id SERIAL PRIMARY KEY,
-        admin_email TEXT NOT NULL,
-        action TEXT NOT NULL,
-        timestamp TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
-    )
-    ''')
-    
-    # Create admin table
-    cursor.execute('''
-    CREATE TABLE IF NOT EXISTS admin (
-        id SERIAL PRIMARY KEY,
-        email TEXT NOT NULL UNIQUE,
-        password TEXT NOT NULL,
-        created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
-    )
-    ''')
-    
-    conn.commit()
-    cursor.close()
-    conn.close()
-
-def save_resume_data(data):
-    """Save resume data to the normalized PostgreSQL schema."""
-    conn = get_database_connection()
-    cursor = conn.cursor()
-    
-    try:
-        personal_info = data.get('personal_info', {})
-        
-        # Insert into main resume_data table and get the new ID
-        cursor.execute('''
-        INSERT INTO resume_data (
-            name, email, phone, linkedin, github, portfolio,
-            summary, target_role, target_category, skills, template
-        ) VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
-        RETURNING id;
-        ''', (
-            personal_info.get('full_name', ''),
-            personal_info.get('email', ''),
-            personal_info.get('phone', ''),
-            personal_info.get('linkedin', ''),
-            personal_info.get('github', ''),
-            personal_info.get('portfolio', ''),
-            data.get('summary', ''),
-            data.get('target_role', ''),
-            data.get('target_category', ''),
-            str(data.get('skills', [])),
-            data.get('template', '')
-        ))
-        
-        resume_id = cursor.fetchone()[0]
-
-        # Insert into experiences table
-        experiences = data.get('experience', [])
-        for exp in experiences:
-            cursor.execute('''
-            INSERT INTO experiences (resume_id, company, position, start_date, end_date, description)
-            VALUES (%s, %s, %s, %s, %s, %s)
-            ''', (resume_id, exp.get('company'), exp.get('position'), exp.get('start_date'), exp.get('end_date'), exp.get('description')))
-
-        # Insert into education table
-        educations = data.get('education', [])
-        for edu in educations:
-            cursor.execute('''
-            INSERT INTO education (resume_id, school, degree, field, graduation_date, gpa)
-            VALUES (%s, %s, %s, %s, %s, %s)
-            ''', (resume_id, edu.get('school'), edu.get('degree'), edu.get('field'), edu.get('graduation_date'), edu.get('gpa')))
-
-        # Insert into projects table
-        projects = data.get('projects', [])
-        for proj in projects:
-            cursor.execute('''
-            INSERT INTO projects (resume_id, name, technologies, description, link)
-            VALUES (%s, %s, %s, %s, %s)
-            ''', (resume_id, proj.get('name'), proj.get('technologies'), proj.get('description'), proj.get('link')))
-
-        conn.commit()
-        return resume_id
+        # First, try connecting using Streamlit secrets
+        if "supabase" in st.secrets and "url" in st.secrets["supabase"]:
+            db_url = st.secrets["supabase"]["url"]
+            # SQLAlchemy uses 'postgresql://' instead of 'postgres://'
+            if db_url.startswith("postgres://"):
+                db_url = "postgresql" + db_url[len("postgres"):]
+            logger.info("Connecting to DB using Streamlit secrets (Supabase).")
     except Exception as e:
-        logger.error(f"Error saving resume data to PostgreSQL: {str(e)}", exc_info=True)
-        conn.rollback()
+        logger.warning(f"Could not connect using Streamlit secrets, falling back to env vars. Error: {e}")
+
+    # Fallback to environment variables if secrets are not available
+    if not db_url:
+        db_user = os.getenv("DB_USER")
+        db_password = os.getenv("DB_PASSWORD")
+        db_host = os.getenv("DB_HOST")
+        db_port = os.getenv("DB_PORT", "5432")
+        db_name = os.getenv("DB_NAME")
+
+        if not all([db_user, db_password, db_host, db_port, db_name]):
+            st.error("Database connection failed. Essential environment variables are missing.")
+            logger.error("Database environment variables are not fully set. Engine not created.")
+            return None
+        
+        db_url = f"postgresql://{db_user}:{db_password}@{db_host}:{db_port}/{db_name}"
+        logger.info(f"Connecting to DB using environment variables.")
+
+    try:
+        engine = create_engine(db_url)
+        return engine
+    except Exception as e:
+        st.error(f"Database connection failed. Please check your configuration. Error: {e}")
+        logger.error(f"Could not create SQLAlchemy engine: {e}", exc_info=True)
         return None
-    finally:
-        cursor.close()
-        conn.close()
 
-def save_analysis_data(resume_id, analysis):
-    """Save resume analysis data to PostgreSQL"""
-    conn = get_database_connection()
-    cursor = conn.cursor()
-    
-    try:
-        cursor.execute('''
-        INSERT INTO resume_analysis (
-            resume_id, ats_score, keyword_match_score,
-            format_score, section_score, missing_skills,
-            recommendations
-        ) VALUES (%s, %s, %s, %s, %s, %s, %s)
-        ''', (
-            resume_id,
-            float(analysis.get('ats_score', 0)),
-            float(analysis.get('keyword_match_score', 0)),
-            float(analysis.get('format_score', 0)),
-            float(analysis.get('section_score', 0)),
-            analysis.get('missing_skills', ''),
-            analysis.get('recommendations', '')
-        ))
-        
-        conn.commit()
-    except Exception as e:
-        logger.error(f"Error saving analysis data to PostgreSQL: {str(e)}", exc_info=True)
-        conn.rollback()
-    finally:
-        cursor.close()
-        conn.close()
+engine = get_engine()
+SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
 
-def get_resume_stats():
-    """Get statistics about resumes from PostgreSQL"""
-    conn = get_database_connection()
-    cursor = conn.cursor(cursor_factory=RealDictCursor)
-    
+@contextmanager
+def get_db():
+    """Provide a transactional scope around a series of operations."""
+    db = SessionLocal()
     try:
-        cursor.execute('SELECT COUNT(*) as total_resumes FROM resume_data')
-        total_resumes = cursor.fetchone()['total_resumes']
-        
-        cursor.execute('SELECT AVG(ats_score) as avg_score FROM resume_analysis')
-        avg_ats_score = cursor.fetchone()['avg_score'] or 0
-        
-        cursor.execute('SELECT name, target_role, created_at FROM resume_data ORDER BY created_at DESC LIMIT 5')
-        recent_activity = cursor.fetchall()
-        
-        return {
-            'total_resumes': total_resumes,
-            'avg_ats_score': round(float(avg_ats_score), 2),
-            'recent_activity': recent_activity
-        }
-    except Exception as e:
-        logger.error(f"Error getting resume stats from PostgreSQL: {str(e)}", exc_info=True)
-        return None
+        yield db
     finally:
-        cursor.close()
-        conn.close()
+        db.close()
 
-def log_admin_action(admin_email, action):
-    """Log admin login/logout actions to PostgreSQL"""
-    conn = get_database_connection()
-    cursor = conn.cursor()
-    
-    try:
-        cursor.execute('''
-        INSERT INTO admin_logs (admin_email, action)
-        VALUES (%s, %s)
-        ''', (admin_email, action))
-        conn.commit()
-    except Exception as e:
-        logger.error(f"Error logging admin action to PostgreSQL: {str(e)}", exc_info=True)
-    finally:
-        cursor.close()
-        conn.close()
+# --- ORM-based Data Functions ---
 
-def get_admin_logs():
-    """Get all admin login/logout logs from PostgreSQL"""
-    conn = get_database_connection()
-    cursor = conn.cursor(cursor_factory=RealDictCursor)
+def add_user(email, password):
+    """Add a new user with a hashed password to the users table."""
+    hashed_password = bcrypt.hashpw(password.encode('utf-8'), bcrypt.gensalt()).decode('utf-8')
+    new_user = User(email=email, password=hashed_password)
     
-    try:
-        cursor.execute('SELECT admin_email, action, timestamp FROM admin_logs ORDER BY timestamp DESC')
-        return cursor.fetchall()
-    except Exception as e:
-        logger.error(f"Error getting admin logs from PostgreSQL: {str(e)}", exc_info=True)
-        return []
-    finally:
-        cursor.close()
-        conn.close()
+    with get_db() as db:
+        try:
+            db.add(new_user)
+            db.commit()
+            return True
+        except IntegrityError:
+            db.rollback()
+            logger.warning(f"Attempted to add existing user: {email}")
+            return False
+        except Exception as e:
+            db.rollback()
+            logger.error(f"Error adding user: {e}", exc_info=True)
+            return False
 
-def get_all_resume_data():
-    """Get all resume data for admin dashboard from PostgreSQL"""
-    conn = get_database_connection()
-    cursor = conn.cursor(cursor_factory=RealDictCursor)
-    
-    try:
-        cursor.execute('''
-        SELECT 
-            r.id, r.name, r.email, r.phone, r.linkedin, r.github, r.portfolio,
-            r.target_role, r.target_category, r.created_at,
-            a.ats_score, a.keyword_match_score, a.format_score, a.section_score
-        FROM resume_data r
-        LEFT JOIN resume_analysis a ON r.id = a.resume_id
-        ORDER BY r.created_at DESC
-        ''')
-        return cursor.fetchall()
-    except Exception as e:
-        logger.error(f"Error getting resume data from PostgreSQL: {str(e)}", exc_info=True)
-        return []
-    finally:
-        cursor.close()
-        conn.close()
-
-def verify_admin(email, password):
-    """Verify admin credentials using bcrypt from PostgreSQL."""
-    conn = get_database_connection()
-    cursor = conn.cursor(cursor_factory=RealDictCursor)
-    
-    try:
-        cursor.execute('SELECT password FROM admin WHERE email = %s', (email,))
-        result = cursor.fetchone()
-        if result:
-            hashed_password = result['password'].encode('utf-8')
-            return bcrypt.checkpw(password.encode('utf-8'), hashed_password)
-        return False
-    except Exception as e:
-        logger.error(f"Error verifying admin from PostgreSQL: {str(e)}", exc_info=True)
-        return False
-    finally:
-        cursor.close()
-        conn.close()
+def verify_user(email, password):
+    """Verify user credentials using bcrypt from the users table."""
+    with get_db() as db:
+        try:
+            user = db.query(User).filter(User.email == email).first()
+            if user and bcrypt.checkpw(password.encode('utf-8'), user.password.encode('utf-8')):
+                return True
+            return False
+        except Exception as e:
+            logger.error(f"Error verifying user: {e}", exc_info=True)
+            return False
 
 def add_admin(email, password):
-    """Add a new admin with a hashed password to PostgreSQL."""
-    conn = get_database_connection()
-    cursor = conn.cursor()
+    """Add a new admin with a hashed password."""
+    hashed_password = bcrypt.hashpw(password.encode('utf-8'), bcrypt.gensalt()).decode('utf-8')
+    new_admin = Admin(email=email, password=hashed_password)
     
-    try:
-        hashed_password = bcrypt.hashpw(password.encode('utf-8'), bcrypt.gensalt())
-        cursor.execute('INSERT INTO admin (email, password) VALUES (%s, %s)', (email, hashed_password.decode('utf-8')))
-        conn.commit()
-        return True
-    except psycopg2.IntegrityError: # Handle cases where the email already exists
-        logger.warning(f"Attempted to add existing admin: {email}")
-        conn.rollback()
-        return False
-    except Exception as e:
-        logger.error(f"Error adding admin to PostgreSQL: {str(e)}", exc_info=True)
-        conn.rollback()
-        return False
-    finally:
-        cursor.close()
-        conn.close()
+    with get_db() as db:
+        try:
+            db.add(new_admin)
+            db.commit()
+            return True
+        except IntegrityError:
+            db.rollback()
+            logger.warning(f"Attempted to add existing admin: {email}")
+            return False
+        except Exception as e:
+            db.rollback()
+            logger.error(f"Error adding admin: {e}", exc_info=True)
+            return False
 
+def verify_admin(email, password):
+    """Verify admin credentials using bcrypt."""
+    with get_db() as db:
+        try:
+            admin = db.query(Admin).filter(Admin.email == email).first()
+            if admin and bcrypt.checkpw(password.encode('utf-8'), admin.password.encode('utf-8')):
+                return True
+            return False
+        except Exception as e:
+            logger.error(f"Error verifying admin: {e}", exc_info=True)
+            return False
+
+def log_admin_action(admin_email, action):
+    """Log admin login/logout actions."""
+    new_log = AdminLog(admin_email=admin_email, action=action)
+    with get_db() as db:
+        try:
+            db.add(new_log)
+            db.commit()
+        except Exception as e:
+            db.rollback()
+            logger.error(f"Error logging admin action: {e}", exc_info=True)
+
+def update_user_password(email, new_password):
+    """Updates the user's password in the users table."""
+    hashed_password = bcrypt.hashpw(new_password.encode('utf-8'), bcrypt.gensalt()).decode('utf-8')
+    with get_db() as db:
+        try:
+            user = db.query(User).filter(User.email == email).first()
+            if user:
+                user.password = hashed_password
+                db.commit()
+                return True
+            return False
+        except Exception as e:
+            db.rollback()
+            logger.error(f"Error updating user password: {e}", exc_info=True)
+            return False
+
+def store_reset_token(email, token):
+    """Stores a password reset token in the database."""
+    expires_at = datetime.now() + timedelta(hours=1)
+    new_token = PasswordResetToken(email=email, token=token, expires_at=expires_at)
+    with get_db() as db:
+        try:
+            db.add(new_token)
+            db.commit()
+            return True
+        except Exception as e:
+            db.rollback()
+            logger.error(f"Error storing reset token: {e}", exc_info=True)
+            return False
+
+def get_user_email_by_token(token):
+    """Retrieves the user's email for a given valid token."""
+    with get_db() as db:
+        try:
+            record = db.query(PasswordResetToken).filter(
+                PasswordResetToken.token == token,
+                PasswordResetToken.expires_at > datetime.now()
+            ).first()
+            return record.email if record else None
+        except Exception as e:
+            logger.error(f"Error retrieving user by token: {e}", exc_info=True)
+            return None
+
+def delete_reset_token(token):
+    """Deletes a password reset token from the database."""
+    with get_db() as db:
+        try:
+            db.query(PasswordResetToken).filter(PasswordResetToken.token == token).delete()
+            db.commit()
+        except Exception as e:
+            db.rollback()
+            logger.error(f"Error deleting reset token: {e}", exc_info=True)
+
+def save_resume_data(data):
+    """Save resume data using ORM."""
+    personal_info = data.get('personal_info', {})
+    
+    new_resume = ResumeData(
+        name=personal_info.get('full_name', ''),
+        email=personal_info.get('email', ''),
+        phone=personal_info.get('phone', ''),
+        linkedin=personal_info.get('linkedin', ''),
+        github=personal_info.get('github', ''),
+        portfolio=personal_info.get('portfolio', ''),
+        summary=data.get('summary', ''),
+        target_role=data.get('target_role', ''),
+        target_category=data.get('target_category', ''),
+        skills=str(data.get('skills', [])), # Keeping this simple for now
+        template=data.get('template', '')
+    )
+
+    for exp_data in data.get('experience', []):
+        new_resume.experiences.append(Experience(**exp_data))
+    
+    for edu_data in data.get('education', []):
+        new_resume.education.append(Education(**edu_data))
+
+    for proj_data in data.get('projects', []):
+        new_resume.projects.append(Project(**proj_data))
+
+    with get_db() as db:
+        try:
+            db.add(new_resume)
+            db.commit()
+            db.refresh(new_resume)
+            return new_resume.id
+        except Exception as e:
+            db.rollback()
+            logger.error(f"Error saving resume data: {e}", exc_info=True)
+            return None
+
+def save_analysis_data(resume_id, analysis):
+    """Save resume analysis data using ORM."""
+    new_analysis = ResumeAnalysis(
+        resume_id=resume_id,
+        ats_score=float(analysis.get('ats_score', 0)),
+        keyword_match_score=float(analysis.get('keyword_match_score', 0)),
+        format_score=float(analysis.get('format_score', 0)),
+        section_score=float(analysis.get('section_score', 0)),
+        missing_skills=analysis.get('missing_skills', ''),
+        recommendations=analysis.get('recommendations', '')
+    )
+    with get_db() as db:
+        try:
+            db.add(new_analysis)
+            db.commit()
+        except Exception as e:
+            db.rollback()
+            logger.error(f"Error saving analysis data: {e}", exc_info=True)
+
+def get_resume_stats():
+    """Get statistics about resumes using ORM."""
+    with get_db() as db:
+        try:
+            total_resumes = db.query(func.count(ResumeData.id)).scalar()
+            avg_ats_score = db.query(func.avg(ResumeAnalysis.ats_score)).scalar() or 0
+            
+            recent_activity_query = db.query(
+                ResumeData.name,
+                ResumeData.target_role,
+                Resume_data.created_at
+            ).order_by(ResumeData.created_at.desc()).limit(5).all()
+
+            # Convert to list of dicts to match previous output format if needed
+            recent_activity = [
+                {"name": r.name, "target_role": r.target_role, "created_at": r.created_at}
+                for r in recent_activity_query
+            ]
+            
+            return {
+                'total_resumes': total_resumes,
+                'avg_ats_score': round(float(avg_ats_score), 2),
+                'recent_activity': recent_activity
+            }
+        except Exception as e:
+            logger.error(f"Error getting resume stats: {e}", exc_info=True)
+            return None
+
+def get_all_resume_data():
+    """Get all resume data for admin dashboard using ORM."""
+    with get_db() as db:
+        try:
+            # Query using join and return objects
+            results = db.query(ResumeData).outerjoin(ResumeAnalysis).order_by(ResumeData.created_at.desc()).all()
+            
+            # Format data to be similar to old RealDictCursor output
+            data_list = []
+            for r in results:
+                data = {
+                    "id": r.id, "name": r.name, "email": r.email, "phone": r.phone,
+                    "linkedin": r.linkedin, "github": r.github, "portfolio": r.portfolio,
+                    "target_role": r.target_role, "target_category": r.target_category,
+                    "created_at": r.created_at,
+                    "ats_score": r.analysis.ats_score if r.analysis else None,
+                    "keyword_match_score": r.analysis.keyword_match_score if r.analysis else None,
+                    "format_score": r.analysis.format_score if r.analysis else None,
+                    "section_score": r.analysis.section_score if r.analysis else None
+                }
+                data_list.append(data)
+            return data_list
+        except Exception as e:
+            logger.error(f"Error getting all resume data: {e}", exc_info=True)
+            return []
+
+def get_admin_logs():
+    """Get all admin logs using ORM."""
+    with get_db() as db:
+        try:
+            # Query and return list of dicts to match old format
+            logs = db.query(AdminLog).order_by(AdminLog.timestamp.desc()).all()
+            return [
+                {"admin_email": log.admin_email, "action": log.action, "timestamp": log.timestamp}
+                for log in logs
+            ]
+        except Exception as e:
+            logger.error(f"Error getting admin logs: {e}", exc_info=True)
+            return []

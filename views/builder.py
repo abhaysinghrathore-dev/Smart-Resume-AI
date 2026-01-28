@@ -3,9 +3,12 @@ import traceback
 from config.database import save_resume_data
 from ui_components import (
     render_personal_info_form, render_summary_form,
-    render_experience_form, render_projects_form, render_education_form, render_skills_form
+    render_experience_form, render_projects_form, 
+    render_education_form, render_skills_form,
+    render_certifications_form  # ADD THIS IMPORT
 )
 from utils.logger import setup_logger
+from services.latex_generator import generate_latex_resume
 
 logger = setup_logger(__name__)
 
@@ -13,8 +16,17 @@ def render_builder(builder):
     st.title("Resume Builder 📝")
     st.write("Create your professional resume")
     
+    # Job Role Input Section
+    st.subheader("🎯 Target Job Role")
+    job_role = st.text_input(
+        "What job role are you applying for?",
+        placeholder="e.g., Software Engineer, Data Scientist, Frontend Developer, etc.",
+        help="This helps tailor your resume to the specific role"
+    )
+    
     # Template selection
-    template_options = ["Modern", "Professional", "Minimal", "Creative"]
+    st.subheader("🎨 Resume Template")
+    template_options = ["ATS-Friendly", "Modern", "Professional", "Minimal", "Creative"]
     selected_template = st.selectbox("Select Resume Template", template_options)
     st.success(f"🎨 Currently using: {selected_template} Template")
 
@@ -22,7 +34,7 @@ def render_builder(builder):
     st.session_state.form_data['personal_info'] = render_personal_info_form(st.session_state.form_data['personal_info'])
 
     # Professional Summary
-    st.session_state.form_data['summary'] = render_summary_form(st.session_state.form_data.get('summary', ''))
+    st.session_state.form_data['summary'] = render_summary_form()
     
     # Experience Section
     st.session_state.form_data['experiences'] = render_experience_form(st.session_state.form_data['experiences'])
@@ -36,10 +48,16 @@ def render_builder(builder):
     # Skills Section
     st.session_state.form_data['skills_categories'] = render_skills_form(st.session_state.form_data['skills_categories'])
     
+    # Certifications Section (NEW - ADD THIS)
+    if 'certifications' not in st.session_state.form_data:
+        st.session_state.form_data['certifications'] = []
+    st.session_state.form_data['certifications'] = render_certifications_form(st.session_state.form_data['certifications'])
+    
     # Update form data in session state
     st.session_state.form_data.update({
         'summary': st.session_state.form_data['summary']
     })
+    
     # Generate Resume button
     if st.button("Generate Resume 📄", type="primary"):
         logger.info("Validating form data...")
@@ -59,64 +77,74 @@ def render_builder(builder):
         if not current_email:
             st.error("⚠️ Please enter your email address.")
             return
+        
+        if not job_role or not job_role.strip():
+            st.error("⚠️ Please enter the job role you are applying for.")
+            return
             
         # Update email in form data one final time
         st.session_state.form_data['personal_info']['email'] = current_email
         
-        try:
-            logger.info("Preparing resume data...")
-            # Prepare resume data with current form values
-            resume_data = {
-                "personal_info": st.session_state.form_data['personal_info'],
-                "summary": st.session_state.form_data.get('summary', '').strip(),
-                "experience": st.session_state.form_data.get('experiences', []),
-                "education": st.session_state.form_data.get('education', []),
-                "projects": st.session_state.form_data.get('projects', []),
-                "skills": st.session_state.form_data.get('skills_categories', {
-                    'technical': [],
-                    'soft': [],
-                    'languages': [],
-                    'tools': []
-                }),
-                "template": selected_template
-            }
-            
-            logger.debug(f"Resume data prepared: {resume_data}")
-            
+        # Show progress
+        with st.spinner(f'🤖 Generating {selected_template} resume for {job_role} role with AI...'):
             try:
-                # Generate resume
-                resume_buffer = builder.generate_resume(resume_data)
-                if resume_buffer:
+                logger.info("Preparing resume data...")
+                # Prepare resume data with current form values
+                resume_data = {
+                    "personal_info": st.session_state.form_data['personal_info'],
+                    "summary": st.session_state.form_data.get('summary', '').strip(),
+                    "experience": st.session_state.form_data.get('experiences', []),
+                    "education": st.session_state.form_data.get('education', []),
+                    "projects": st.session_state.form_data.get('projects', []),
+                    "skills": st.session_state.form_data.get('skills_categories', {}),
+                    "certifications": st.session_state.form_data.get('certifications', []),  # ADD THIS
+                    "template": selected_template,
+                    "job_role": job_role.strip(),
+                    "experience_type": "professional"
+                }
+                
+                logger.debug(f"Resume data prepared: {resume_data}")
+                
+                try:
+                    # Generate LaTeX code using Groq API
+                    st.info(f"🎨 Generating {selected_template} resume tailored for {job_role} role...")
+                    latex_code = generate_latex_resume(resume_data, selected_template, job_role.strip())
+                    
+                    logger.info("LaTeX code received from Groq")
+                    
+                    # Store LaTeX code in session state for preview/download
+                    st.session_state['generated_latex'] = latex_code
+                    st.session_state['job_role'] = job_role.strip()
+                    
+                    # Save to database
                     try:
-                        # Save resume data to database
                         save_resume_data(resume_data)
-                        logger.info("Resume generated and saved successfully")
-                        
-                        # Offer the resume for download
-                        st.success("✅ Resume generated successfully!")
-                        st.download_button(
-                            label="Download Resume 📥",
-                            data=resume_buffer,
-                            file_name=f"{current_name.replace(' ', '_')}_resume.docx",
-                            mime="application/vnd.openxmlformats-officedocument.wordprocessingml.document"
-                        )
+                        logger.info("Resume data saved to database")
                     except Exception as db_error:
                         logger.warning(f"Failed to save to database: {str(db_error)}")
-                        # Still allow download even if database save fails
-                        st.warning("⚠️ Resume generated but couldn't be saved to database")
-                        st.download_button(
-                            label="Download Resume 📥",
-                            data=resume_buffer,
-                            file_name=f"{current_name.replace(' ', '_')}_resume.docx",
-                            mime="application/vnd.openxmlformats-officedocument.wordprocessingml.document"
-                        )
-                else:
-                    st.error("❌ Failed to generate resume. Please try again.")
-                    logger.error("Resume buffer was None")
-            except Exception as gen_error:
-                logger.error(f"Error during resume generation: {str(gen_error)}", exc_info=True)
-                st.error(f"❌ Error generating resume: {str(gen_error)}")
                     
-        except Exception as e:
-            logger.error(f"Error preparing resume data: {str(e)}", exc_info=True)
-            st.error(f"❌ Error preparing resume data: {str(e)}")
+                    # Success message
+                    st.success(f"✅ Resume generated successfully for {job_role} role with Groq AI!")
+                    
+                    # Display LaTeX code in an expander
+                    with st.expander("📝 View Generated LaTeX Code"):
+                        st.code(latex_code, language='latex')
+                    
+                    # Download button for LaTeX file
+                    st.download_button(
+                        label="Download LaTeX Code (.tex) 📥",
+                        data=latex_code,
+                        file_name=f"{current_name.replace(' ', '_')}_{job_role.replace(' ', '_')}_resume.tex",
+                        mime="text/plain"
+                    )
+                    
+                    st.info("💡 Tip: You can compile this LaTeX code using Overleaf or a local LaTeX compiler to generate a PDF.")
+                    
+                except Exception as groq_error:
+                    logger.error(f"Error calling Groq API: {str(groq_error)}", exc_info=True)
+                    st.error(f"❌ Error generating resume with Groq: {str(groq_error)}")
+                    st.info("Please check your GROQ_API_KEY in the .env file")
+                        
+            except Exception as e:
+                logger.error(f"Error preparing resume data: {str(e)}", exc_info=True)
+                st.error(f"❌ Error preparing resume data: {str(e)}")

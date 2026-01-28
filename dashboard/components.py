@@ -9,27 +9,16 @@ class DashboardComponents:
         self.colors = colors
 
     def render_metric_card(self, title, value, subtitle=None, trend=None, trend_value=None):
-        """Render a metric card with optional trend indicator"""
-        trend_html = ""
-        if trend and trend_value:
-            trend_color = self.colors['success'] if trend == 'up' else self.colors['danger']
-            trend_arrow = '↑' if trend == 'up' else '↓'
-            trend_html = f"""
-                <div style="color: {trend_color}; font-size: 0.9rem; margin-top: 5px;">
-                    {trend_arrow} {trend_value}%
-                </div>
-            """
+        """Render a metric card using Streamlit's native st.metric component."""
+        
+        delta_value = None
+        if trend and trend_value is not None:
+            delta_color = "inverse" if trend == 'down' else "normal" # Streamlit's delta_color options
+            delta_value = f"{'↓' if trend == 'down' else '↑'} {trend_value}%"
+            st.metric(label=title, value=value, delta=delta_value, delta_color=delta_color)
+        else:
+            st.metric(label=title, value=value)
 
-        st.markdown(f"""
-            <div class="metric-card">
-                <div style="color: {self.colors['subtext']}; font-size: 0.9rem;">{title}</div>
-                <div style="color: {self.colors['text']}; font-size: 2rem; font-weight: bold; margin: 10px 0;">
-                    {value}
-                </div>
-                {f'<div style="color: {self.colors["subtext"]}; font-size: 0.8rem;">{subtitle}</div>' if subtitle else ''}
-                {trend_html}
-            </div>
-        """, unsafe_allow_html=True)
 
     def create_gauge_chart(self, value, title):
         """Create a gauge chart for metrics like ATS score"""

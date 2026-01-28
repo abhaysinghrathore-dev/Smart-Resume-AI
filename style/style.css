@@ -1,6 +1,79 @@
 /* Import Google Fonts */
 @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Poppins:wght@400;500;600;700&display=swap');
 
+/* --- START OF NEW SIDEBAR STYLE --- */
+/* Sidebar container */
+section[data-testid="stSidebar"] {
+    background-color: #2f343a !important;
+    border-right: 1px solid #444; /* A subtle border instead of a shadow */
+    box-shadow: none !important;
+    padding: 1rem !important;
+}
+
+/* Sidebar header text */
+.sidebar-header {
+    color: white;
+    font-size: 24px;
+    font-weight: 600;
+    padding: 1rem 0;
+    text-align: center;
+}
+
+/* All text inside sidebar */
+section[data-testid="stSidebar"] p,
+section[data-testid="stSidebar"] span,
+section[data-testid="stSidebar"] h1,
+section[data-testid="stSidebar"] h2,
+section[data-testid="stSidebar"] h3 {
+    color: white !important;
+}
+
+
+/* Sidebar navigation buttons */
+section[data-testid="stSidebar"] .stButton button {
+    padding: 14px 20px !important;
+    margin: 5px 0 !important;
+    border-radius: 8px !important;
+    color: #e6e6e6 !important; /* Slightly off-white */
+    font-weight: 500 !important;
+    cursor: pointer !important;
+    transition: color 0.2s ease, background-color 0.2s ease !important;
+    background-color: transparent !important;
+    border: none !important;
+    width: 100% !important;
+    text-align: left !important;
+    display: flex !important;
+    align-items: center !important;
+    gap: 10px !important; /* Space between icon and text */
+}
+
+/* Hover effect for navigation buttons */
+section[data-testid="stSidebar"] .stButton button:hover {
+    color: #ffffff !important;
+    background-color: rgba(255, 255, 255, 0.08) !important;
+}
+
+/* Make sure the text inside the button is styled correctly */
+section[data-testid="stSidebar"] .stButton button p {
+    color: inherit !important; /* Inherit color from the button */
+    font-weight: inherit !important;
+}
+
+/* Style for the active page button */
+section[data-testid="stSidebar"] .stButton button.active {
+    background-color: rgba(0, 123, 255, 0.2) !important;
+    color: #ffffff !important;
+    font-weight: 600 !important;
+}
+
+.sidebar-icon {
+    font-size: 1.2rem;
+    color: rgba(255, 255, 255, 0.6);
+    transition: all 0.2s ease;
+}
+
+/* --- END OF NEW SIDEBAR STYLE --- */
+
 /* Root Variables */
 :root {
     --primary-gradient: linear-gradient(135deg, #007bff 0%, #0056b3 100%); /* Adjusted primary gradient */
@@ -13,7 +86,7 @@
     --bg-dark: #343a40; /* Dark background for sidebar/footers */
     --text-primary: #212529; /* Darker text for readability */
     --text-secondary: #6c757d; /* Lighter text for descriptions/subtitles */
-    --text-light: #000000; /* White text for dark backgrounds */
+    --text-light: #ffffff; /* White text for dark backgrounds */
     --border-color: #e0e0e0; /* Light border for subtle separation */
     --shadow-light: rgba(0, 0, 0, 0.08); /* Subtle shadow for depth */
     --shadow-medium: rgba(0, 0, 0, 0.15); /* Medium shadow for hover effects */
@@ -47,57 +120,6 @@ body {
     margin: 0 auto;
     background-color: var(--bg-primary);
     color: var(--text-primary);
-}
-
-/* Sidebar Styling */
-[data-testid="stSidebar"],
-[data-testid="stSidebarNav"] {
-    background: var(--bg-dark) !important;
-    padding: 1rem;
-    box-shadow: 2px 0 5px var(--shadow-light);
-}
-
-[data-testid="stSidebar"] .st-emotion-cache-16idsys p,
-[data-testid="stSidebar"] .st-emotion-cache-16idsys span,
-[data-testid="stSidebar"] .st-emotion-cache-ue6h4q,
-[data-testid="stSidebar"] .st-emotion-cache-pkbazv,
-[data-testid="stSidebar"] h1,
-[data-testid="stSidebar"] h2,
-[data-testid="stSidebar"] h3,
-[data-testid="stSidebar"] p,
-[data-testid="stSidebarNav"] .st-emotion-cache-ue6h4q,
-[data-testid="stSidebarNav"] .st-emotion-cache-eczf16,
-[data-testid="stSidebarNav"] h1,
-[data-testid="stSidebarNav"] p,
-[data-testid="stSidebarNav"] .st-emotion-cache-18ni7ap {
-    color: var(--text-light) !important;
-    font-weight: 500;
-}
-
-/* Sidebar button styling */
-[data-testid="stSidebar"] button,
-[data-testid="stSidebar"] button p,
-[data-testid="stSidebar"] button span,
-div[data-testid="stSidebarNav"] button {
-    background: rgba(255, 255, 255, 0.1) !important;
-    color: var(--text-light) !important;
-    border: none !important;
-    padding: 0.75rem 1rem !important;
-    border-radius: 8px !important;
-    cursor: pointer !important;
-    transition: all 0.3s ease !important;
-    margin: 0.5rem 0 !important;
-    width: 100% !important;
-    text-align: left !important;
-}
-
-[data-testid="stSidebar"] button:hover,
-[data-testid="stSidebar"] button:active,
-[data-testid="stSidebar"] button:focus,
-div[data-testid="stSidebarNav"] button:hover {
-    background: rgba(255, 255, 255, 0.2) !important;
-    transform: translateX(5px);
-    color: var(--text-light) !important;
 }
 
 /* Card Styling */
@@ -363,8 +385,9 @@ h1 {
     background: var(--bg-secondary) !important;
 }
 
-/* Custom Components */
-.feature-card {
+/* This targets the container created by st.container(border=True) and
+   applies the card-like hover effects and transitions. */
+div[data-testid="stAppViewContainer"] [data-testid="stVerticalBlock"] {
     background: var(--bg-secondary);
     border-radius: 15px;
     padding: 1.5rem;
@@ -373,10 +396,10 @@ h1 {
     transition: all 0.3s ease;
 }
 
-.feature-card:hover {
+div[data-testid="stAppViewContainer"] [data-testid="stVerticalBlock"]:hover {
     transform: translateY(-5px);
     box-shadow: 0 8px 25px var(--shadow-medium);
-    border-color: var(--accent-color);
+    border-color: var(--accent-color) !important;
 }
 
 .resume-template {
@@ -747,11 +770,6 @@ h1 {
         font-size: 0.9rem;
     }
 
-    /* Sidebar */
-    [data-testid="stSidebar"] {
-        padding: 0.5rem;
-    }
-
     /* Buttons */
     .stButton > button {
         padding: 10px 15px !important;
@@ -903,82 +921,6 @@ h1 {
     }
 }
 
-/* Enhanced Sidebar Styling */
-[data-testid="stSidebar"] {
-    background: var(--bg-dark) !important;
-    padding: 1.5rem 1rem !important;
-    box-shadow: 2px 0 10px rgba(0, 0, 0, 0.2) !important;
-    transition: all 0.3s ease-in-out;
-}
-
-[data-testid="stSidebar"] .st-emotion-cache-16idsys p,
-[data-testid="stSidebar"] .st-emotion-cache-16idsys span,
-[data-testid="stSidebar"] .st-emotion-cache-ue6h4q,
-[data-testid="stSidebar"] .st-emotion-cache-pkbazv,
-[data-testid="stSidebar"] h1,
-[data-testid="stSidebar"] h2,
-[data-testid="stSidebar"] h3,
-[data-testid="stSidebar"] p,
-[data-testid="stSidebarNav"] .st-emotion-cache-ue6h4q,
-[data-testid="stSidebarNav"] .st-emotion-cache-eczf16,
-[data-testid="stSidebarNav"] h1,
-[data-testid="stSidebarNav"] p,
-[data-testid="stSidebarNav"] .st-emotion-cache-18ni7ap {
-    color: #b53d3d !important;
-    font-family: var(--font-secondary);
-    font-weight: 600;
-    margin-bottom: 0.5rem;
-}
-
-/* Sidebar Title (Streamlit's default h1) */
-[data-testid="stSidebar"] .st-emotion-cache-1f8r8ss h1 {
-    font-size: 1.8rem;
-    text-align: center;
-    padding-bottom: 1rem;
-    border-bottom: 1px solid rgba(255, 255, 255, 0.1);
-    margin-bottom: 1.5rem;
-}
-
-/* Sidebar Navigation Buttons */
-div[data-testid="stSidebarNav"] button {
-    display: flex;
-    align-items: center;
-    gap: 0.8rem;
-    background: transparent !important;
-    color: var(--text-light) !important;
-    border: none !important;
-    padding: 0.8rem 1rem !important;
-    margin: 0.2rem 0 !important;
-    border-radius: 8px !important;
-    width: 100% !important;
-    text-align: left !important;
-    transition: all 0.2s ease;
-    font-weight: 500;
-}
-
-div[data-testid="stSidebarNav"] button:hover {
-    background: rgba(255, 255, 255, 0.1) !important;
-    color: var(--accent-color-light) !important;
-    transform: translateX(3px);
-}
-
-div[data-testid="stSidebarNav"] button.active {
-    background: var(--accent-color) !important;
-    color: var(--text-light) !important;
-    font-weight: 600;
-    box-shadow: 0 2px 8px rgba(0, 123, 255, 0.4);
-}
-
-div[data-testid="stSidebarNav"] button.active .sidebar-icon {
-    color: var(--text-light) !important;
-}
-
-.sidebar-icon {
-    font-size: 1.2rem;
-    color: rgba(255, 255, 255, 0.6);
-    transition: all 0.2s ease;
-}
-
 /* Admin Login Expander */
 .stExpander {
     border: 1px solid rgba(53, 26, 205, 0.1);
@@ -1012,7 +954,7 @@ div[data-testid="stSidebarNav"] button.active .sidebar-icon {
 }
 
 .stExpander .stTextInput input {
-    color: var(--text-light) !important;
+    color: #020202 !important;
 }
 
 .stExpander .stButton > button {
@@ -1047,3 +989,40 @@ div[data-testid="stVerticalBlock"] > [data-testid="stHorizontalBlock"] > [data-t
     width: 100%;
     height: 100%;
 }
+
+
+/* --- ADDED FOR SECURE COMPONENTS --- */
+
+/* This targets the container created by st.container(border=True) and
+   applies the card-like hover effects and transitions. */
+div[data-testid="stAppViewContainer"] [data-testid="stVerticalBlock"] {
+    transition: all 0.3s ease;
+}
+
+div[data-testid="stAppViewContainer"] [data-testid="stVerticalBlock"]:hover {
+    transform: translateY(-5px);
+    box-shadow: 0 8px 25px var(--shadow-medium);
+    border-color: var(--accent-color) !important;
+}
+
+/* Styles the FontAwesome icon used in the new feature_card. */
+.feature-icon {
+    font-size: 1.5rem;
+    color: var(--accent-color);
+    margin-bottom: 1rem;
+    display: block;
+}
+
+/* Specific overrides for sidebar text colors to be black, assuming a white background */
+.sidebar-header {
+    color: black !important; /* "Smart Resume AI" */
+}
+
+section[data-testid="stSidebar"] h3 {
+    color: black !important; /* "Menu" (assuming it's an h3) */
+}
+
+section[data-testid="stSidebar"] .stExpander div[role="button"] {
+    color: black !important; /* "Admin Access" */
+}
+
