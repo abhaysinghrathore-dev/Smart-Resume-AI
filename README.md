@@ -2,6 +2,8 @@
   
 # 🚀 Smart Resume AI — A Career Co-Pilot
 
+[🎬 **Watch the Video Demo Here**](#) *(Link to be added later)*
+
 *A next-generation, AI-driven ecosystem designed to secure your dream job by bridging the gap between raw talent and ATS expectations.*
 
 [![Status](https://img.shields.io/badge/Status-Active-success?style=for-the-badge)](https://github.com/ShadowAniket/AI-RESUME)
@@ -137,7 +139,19 @@ For upcoming contributors and future maintainers, adhere strictly to these archi
 
 ---
 
-## 6. 🌱 End-to-End Guide (For Non-Technical Users)
+## 6. 🛡️ Data Privacy & Security Disclosure
+
+As this application handles sensitive personal information (Resumes/CVs), it is built with a **Privacy-First mindset** following OWASP AI Security principles. 
+
+- **Ephemeral Processing:** Uploaded PDF files are processed in-memory. No resume data is permanently stored on the server unless the user explicitly saves it to their profile.
+- **Secure API Orchestration:** All communication with AI Inference Engines (OpenAI/Groq) is encrypted via TLS 1.2+ in transit.
+- **Data Minimization:** We only send the raw text necessary for analysis to the LLM. Personal Identifiable Information (PII) such as Phone Numbers and Addresses can be redacted before processing.
+- **Secrets Management:** API keys and database credentials are never hardcoded. They are managed through Environment Variables and GitHub Secrets for CI/CD pipelines.
+- **Local Deployment Option:** For maximum privacy, users can run the entire stack locally using Docker, ensuring no data ever leaves their machine except for the AI inference call.
+
+---
+
+## 7. 🌱 End-to-End Guide (For Non-Technical Users)
 
 Not a developer or software engineer? No problem! Here is exactly how you can get Smart Resume AI running on your computer easily.
 
@@ -166,7 +180,7 @@ That's it! You will immediately see the sleek, dark-themed interface of Smart Re
 
 ---
 
-## 7. 📄 License
+## 8. 📄 License
 
 This project is proudly open-source and licensed under the **MIT License**.
 
