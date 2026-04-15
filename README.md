@@ -135,6 +135,48 @@ For upcoming contributors and future maintainers, adhere strictly to these archi
   > ✅ **Good:** `// Delaying execution by 2s to prevent OpenAI rate limiting on the Free Tier context window.`
 - **Commit History as Documentation:** When contributing, utilize semantic versioning. If you hit a bizarre edge case (e.g., weird PDF formatting failures), use `git blame` or annotated logs. Often, esoteric logic exists precisely to fix past platform anomalies.
 
+---
+
+## 6. 🌱 End-to-End Guide (For Non-Technical Users)
+
+Not a developer or software engineer? No problem! Here is exactly how you can get Smart Resume AI running on your computer easily.
+
+### Step 1: Install Docker Desktop
+Docker is a magic box that runs complex applications without you needing to manually install dozens of tech tools (like Python or databases). 
+- Go to [Docker's official website](https://www.docker.com/products/docker-desktop/) and download Docker Desktop.
+- Follow the simple installer instructions and leave Docker running in the background.
+
+### Step 2: Open Your Terminal (Command Line)
+Don't be intimidated! It's just a place to paste a command.
+- **Windows:** Press the `Windows Key`, type `cmd`, and press Enter to open the Command Prompt.
+- **Mac:** Press `Cmd + Space`, type `Terminal`, and press Enter.
+
+### Step 3: Start the Application!
+Copy and paste this single line of text into your terminal and hit Enter:
+```bash
+docker-compose up -d
+```
+*(This tells Docker to download the pre-packaged Smart Resume AI and start it up smoothly securely on your machine).*
+
+### Step 4: Access Your Career Co-Pilot
+Once the terminal is done downloading and setting things up (it might take a minute the first time), open your favorite web browser (like Chrome, Safari, or Edge) and go to this exact address:
+👉 **`http://localhost:8501`**
+
+That's it! You will immediately see the sleek, dark-themed interface of Smart Resume AI. Start by navigating to the **Resume Builder** on the left menu, inputting your data, and let the AI do the heavy lifting.
+
+---
+
+## 7. 📄 License
+
+This project is proudly open-source and licensed under the **MIT License**.
+
+#### What this means:
+- **✅ You Can:** Use this application anywhere, modify the code for your own projects, and even use it commercially.
+- **✅ You Must:** Include the original copyright and permission notice in any copy you distribute.
+- **❌ You Cannot:** Hold the original creators liable for any bugs, issues, or rejections from jobs (we provide the tools, but you bring the talent!). It is provided "as is".
+
+See the full legal text in the [LICENSE.md](LICENSE.md) file.
+
 <div align="center">
   <br>
   <i>Crafted with precision for the modern, AI-first ecosystem.</i>
