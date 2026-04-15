@@ -2,7 +2,7 @@
   
 # 🚀 Smart Resume AI — A Career Co-Pilot
 
-[🎬 **Watch the Video Demo Here**](#) *(Link to be added later)*
+[🎬 **Watch the Video Demo Here**](https://drive.google.com/file/d/1gLE3YFMC4mB7M797Pi5xigsri1OdctQz/view?usp=sharing)
 
 *A next-generation, AI-driven ecosystem designed to secure your dream job by bridging the gap between raw talent and ATS expectations.*
 
