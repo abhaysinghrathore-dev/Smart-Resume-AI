@@ -151,32 +151,99 @@ As this application handles sensitive personal information (Resumes/CVs), it is 
 
 ---
 
-## 7. 🌱 End-to-End Guide (For Non-Technical Users)
+## 7. 🚀 Comprehensive Installation Guide
 
-Not a developer or software engineer? No problem! Here is exactly how you can get Smart Resume AI running on your computer easily.
+Whether you are a recruiter testing the platform or a developer looking to contribute, choose the setup path that fits your expertise. 
 
-### Step 1: Install Docker Desktop
-Docker is a magic box that runs complex applications without you needing to manually install dozens of tech tools (like Python or databases). 
+### 🟢 Path A: The Non-Technical Route (Docker Setup)
+
+Not a software engineer? No problem! Here is exactly how to get Smart Resume AI running without configuring complicated development tools.
+
+**Step 1: Install Docker Desktop**
+Docker is a tool that runs complete applications in isolated "containers", meaning you don't need to manually configure Python or databases. 
 - Go to [Docker's official website](https://www.docker.com/products/docker-desktop/) and download Docker Desktop.
-- Follow the simple installer instructions and leave Docker running in the background.
+- Follow the installer instructions and leave Docker running quietly in the background.
 
-### Step 2: Open Your Terminal (Command Line)
-Don't be intimidated! It's just a place to paste a command.
-- **Windows:** Press the `Windows Key`, type `cmd`, and press Enter to open the Command Prompt.
+**Step 2: Open Your Terminal**
+The Terminal is simply a window where you can give your computer direct text commands.
+- **Windows:** Press the `Windows Key`, type `cmd`, and press Enter.
 - **Mac:** Press `Cmd + Space`, type `Terminal`, and press Enter.
 
-### Step 3: Start the Application!
-Copy and paste this single line of text into your terminal and hit Enter:
+**Step 3: Start the Application!**
+Copy and paste this exact command into your terminal and press Enter:
 ```bash
-docker-compose up -d
+docker-compose up --build -d
 ```
-*(This tells Docker to download the pre-packaged Smart Resume AI and start it up smoothly securely on your machine).*
+*(Docker will now automatically pull the Streamlit UI, wire up the PostgreSQL backend, and launch the platform. First-time setup may take a minute.)*
 
-### Step 4: Access Your Career Co-Pilot
-Once the terminal is done downloading and setting things up (it might take a minute the first time), open your favorite web browser (like Chrome, Safari, or Edge) and go to this exact address:
+**Step 4: Access Your Career Co-Pilot**
+When the terminal lets you type again, open your favorite web browser and visit:
 👉 **`http://localhost:8501`**
 
-That's it! You will immediately see the sleek, dark-themed interface of Smart Resume AI. Start by navigating to the **Resume Builder** on the left menu, inputting your data, and let the AI do the heavy lifting.
+---
+
+### 💻 Path B: The Developer Route (Manual Local Setup)
+
+For engineers looking to debug the AI LLM pipelines, manipulate the database schema, or contribute to the repository.
+
+**Prerequisites:**
+- Python 3.11+
+- PostgreSQL (running locally)
+- Git
+
+**Step 1: Clone & Environment Setup**
+```bash
+# Clone the repository
+git clone https://github.com/ShadowAniket/AI-RESUME.git
+cd AI-RESUME
+
+# Initialize and activate a Virtual Environment
+python -m venv venv
+
+# On Windows:
+venv\Scripts\activate
+# On Mac/Linux:
+source venv/bin/activate
+
+# Install core dependencies
+pip install -r requirements.txt
+```
+
+**Step 2: Environment Variables Configuration**
+Create a local PostgreSQL database named `ai_resume_db`. Then, create a `.env` file in the root directory to store your secure credentials:
+```env
+# Database Connections
+DB_HOST=localhost
+DB_PORT=5432
+DB_NAME=ai_resume_db
+DB_USER=your_postgres_user
+DB_PASSWORD=your_postgres_password
+
+# Default Admin Panel Credentials
+ADMIN_EMAIL=admin@example.com
+ADMIN_PASSWORD=secure_admin_password
+
+# LLM Orchestration Keys (Required for AI generation)
+OPENAI_API_KEY="sk-..."
+GROQ_API_KEY="gsk_..."
+```
+
+**Step 3: Alembic Migrations & DB Seeding**
+We use Alembic for our operational database schema versioning. Run these to scaffold your local tables:
+```bash
+# Push schema structures to your local PostgreSQL DB
+alembic upgrade head
+
+# Seed the initial admin user mapping
+python setup_db.py
+```
+
+**Step 4: Boot the Engine**
+```bash
+# Launch Streamlit with execution logging
+streamlit run app.py
+```
+Your local development server will securely spin up at `http://localhost:8501`. Every time you save a `.py` file, the UI will intercept the changes and Hot-Reload automatically!
 
 ---
 
